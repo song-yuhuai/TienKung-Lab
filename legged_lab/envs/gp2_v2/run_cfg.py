@@ -31,7 +31,7 @@ from isaaclab_rl.rsl_rl import (  # noqa:F401
 )
 
 import legged_lab.mdp as mdp
-from legged_lab.assets.tienkung2_lite import TIENKUNG2LITE_CFG
+from legged_lab.assets.gp2_v2 import GP2_V2_CFG
 from legged_lab.envs.base.base_config import (
     ActionDelayCfg,
     BaseSceneCfg,
@@ -53,11 +53,11 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 @configclass
 class GaitCfg:
-    gait_air_ratio_l: float = 0.38
-    gait_air_ratio_r: float = 0.38
-    gait_phase_offset_l: float = 0.38
-    gait_phase_offset_r: float = 0.88
-    gait_cycle: float = 0.85
+    gait_air_ratio_l: float = 0.6
+    gait_air_ratio_r: float = 0.6
+    gait_phase_offset_l: float = 0.6
+    gait_phase_offset_r: float = 0.1
+    gait_cycle: float = 0.5
 
 
 @configclass
@@ -148,9 +148,9 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=1.0, params={"delta_t": 0.02})
-    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=1.0, params={"delta_t": 0.02})
-    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.6, params={"delta_t": 0.02})
+    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=1.0)
+    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=1.0)
+    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.6)
 
     ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0005)
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.001)
@@ -160,15 +160,14 @@ class LiteRewardCfg:
 
 
 @configclass
-class TienKungWalkFlatEnvCfg:
-    # amp_motion_files_display = ["legged_lab/envs/tienkung/datasets/motion_visualization/walk.txt"]
-    amp_motion_files_display = ["legged_lab/envs/tienkung/datasets/motion_visualization/tk_walk1.txt"]
+class Gp2RunFlatEnvCfg:
+    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/run.txt"]
     device: str = "cuda:0"
     scene: BaseSceneCfg = BaseSceneCfg(
         max_episode_length_s=20.0,
         num_envs=4096,
         env_spacing=2.5,
-        robot=TIENKUNG2LITE_CFG,
+        robot=GP2_V2_CFG,
         terrain_type="generator",
         terrain_generator=GRAVEL_TERRAINS_CFG,
         # terrain_type="plane",
@@ -219,7 +218,7 @@ class TienKungWalkFlatEnvCfg:
         ),
     )
     noise: NoiseCfg = NoiseCfg(
-        add_noise=True,
+        add_noise=False,
         noise_scales=NoiseScalesCfg(
             lin_vel=0.2,
             ang_vel=0.2,
@@ -287,7 +286,7 @@ class TienKungWalkFlatEnvCfg:
 
 
 @configclass
-class TienKungWalkAgentCfg(RslRlOnPolicyRunnerCfg):
+class Gp2RunAgentCfg(RslRlOnPolicyRunnerCfg):
     seed = 42
     device = "cuda:0"
     num_steps_per_env = 24
@@ -322,19 +321,18 @@ class TienKungWalkAgentCfg(RslRlOnPolicyRunnerCfg):
     clip_actions = None
     save_interval = 100
     runner_class_name = "AmpOnPolicyRunner"
-    experiment_name = "walk"
+    experiment_name = "run"
     run_name = ""
     logger = "tensorboard"
-    neptune_project = "walk"
-    wandb_project = "walk"
+    neptune_project = "run"
+    wandb_project = "run"
     resume = False
     load_run = ".*"
     load_checkpoint = "model_.*.pt"
 
     # amp parameter
     amp_reward_coef = 0.3
-    # amp_motion_files = ["legged_lab/envs/tienkung/datasets/motion_amp_expert/walk.txt"]
-    amp_motion_files = ["legged_lab/envs/tienkung/datasets/motion_amp_expert/tk_walk1_expert.txt"]
+    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/run.txt"]
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]

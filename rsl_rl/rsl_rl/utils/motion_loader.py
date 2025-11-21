@@ -24,9 +24,12 @@ import torch
 
 
 class AMPLoader:
-    JOINT_POS_SIZE = 20
+    # JOINT_POS_SIZE = 20  hard coded for tienkung
 
-    JOINT_VEL_SIZE = 20
+    # JOINT_VEL_SIZE = 20
+
+    JOINT_POS_SIZE = 14   #hard coded for gp2
+    JOINT_VEL_SIZE = 14
 
     END_EFFECTOR_POS_SIZE = 12
 

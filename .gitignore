@@ -6,4 +6,5 @@ logs
 run_bash.sh
 wandb
 MUJOCO_LOG.TXT
-.history
+.history# generated / scratch
+--output_txt

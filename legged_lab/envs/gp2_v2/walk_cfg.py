@@ -31,7 +31,7 @@ from isaaclab_rl.rsl_rl import (  # noqa:F401
 )
 
 import legged_lab.mdp as mdp
-from legged_lab.assets.tienkung2_lite import TIENKUNG2LITE_CFG
+from legged_lab.assets.gp2_v2 import GP2_V2_CFG
 from legged_lab.envs.base.base_config import (
     ActionDelayCfg,
     BaseSceneCfg,
@@ -74,13 +74,13 @@ class LiteRewardCfg:
         weight=-1.0,
         params={
             "sensor_cfg": SceneEntityCfg(
-                "contact_sensor", body_names=["knee_pitch.*", "shoulder_roll.*", "elbow_pitch.*", "pelvis"]
+                "contact_sensor", body_names=["(left|right)_knee_link", "base_link"]
             ),
             "threshold": 1.0,
         },
     )
     body_orientation_l2 = RewTerm(
-        func=mdp.body_orientation_l2, params={"asset_cfg": SceneEntityCfg("robot", body_names="pelvis")}, weight=-2.0
+        func=mdp.body_orientation_l2, params={"asset_cfg": SceneEntityCfg("robot", body_names="base_link")}, weight=-2.0
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0)
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
@@ -88,15 +88,15 @@ class LiteRewardCfg:
         func=mdp.feet_slide,
         weight=-0.25,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="ankle_roll.*"),
-            "asset_cfg": SceneEntityCfg("robot", body_names="ankle_roll.*"),
+            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="(left|right)_ankle_roll_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names="(left|right)_ankle_roll_link"),
         },
     )
     feet_force = RewTerm(
         func=mdp.body_force,
         weight=-3e-3,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="ankle_roll.*"),
+            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="(left|right)_ankle_roll_link"),
             "threshold": 500,
             "max_reward": 400,
         },
@@ -104,12 +104,12 @@ class LiteRewardCfg:
     feet_too_near = RewTerm(
         func=mdp.feet_too_near_humanoid,
         weight=-2.0,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=["ankle_roll.*"]), "threshold": 0.2},
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=["(left|right)_ankle_roll_link"]), "threshold": 0.2},
     )
     feet_stumble = RewTerm(
         func=mdp.feet_stumble,
         weight=-2.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_sensor", body_names=["ankle_roll.*"])},
+        params={"sensor_cfg": SceneEntityCfg("contact_sensor", body_names=["(left|right)_ankle_roll_link"])},
     )
     dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-2.0)
     joint_deviation_hip = RewTerm(
@@ -119,18 +119,12 @@ class LiteRewardCfg:
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 joint_names=[
-                    "hip_yaw_.*_joint",
-                    "hip_roll_.*_joint",
-                    "shoulder_pitch_.*_joint",
-                    "elbow_pitch_.*_joint",
+                    "(left|right)_hip_yaw_joint",
+                    "(left|right)_hip_roll_joint",
+                    "(left|right)_shoulder_pitch_joint",
                 ],
             )
         },
-    )
-    joint_deviation_arms = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_roll_.*_joint", "shoulder_yaw_.*_joint"])},
     )
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
@@ -139,10 +133,10 @@ class LiteRewardCfg:
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 joint_names=[
-                    "hip_pitch_.*_joint",
-                    "knee_pitch_.*_joint",
-                    "ankle_pitch_.*_joint",
-                    "ankle_roll_.*_joint",
+                    "(left|right)_hip_pitch_joint",
+                    "(left|right)_knee_joint",
+                    "(left|right)_ankle_pitch_joint",
+                    "(left|right)_ankle_roll_joint",
                 ],
             )
         },
@@ -160,15 +154,14 @@ class LiteRewardCfg:
 
 
 @configclass
-class TienKungWalkFlatEnvCfg:
-    # amp_motion_files_display = ["legged_lab/envs/tienkung/datasets/motion_visualization/walk.txt"]
-    amp_motion_files_display = ["legged_lab/envs/tienkung/datasets/motion_visualization/tk_walk1.txt"]
+class Gp2WalkFlatEnvCfg:
+    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/gp_walk1.txt"]
     device: str = "cuda:0"
     scene: BaseSceneCfg = BaseSceneCfg(
         max_episode_length_s=20.0,
         num_envs=4096,
         env_spacing=2.5,
-        robot=TIENKUNG2LITE_CFG,
+        robot=GP2_V2_CFG,
         terrain_type="generator",
         terrain_generator=GRAVEL_TERRAINS_CFG,
         # terrain_type="plane",
@@ -176,7 +169,7 @@ class TienKungWalkFlatEnvCfg:
         max_init_terrain_level=5,
         height_scanner=HeightScannerCfg(
             enable_height_scan=False,
-            prim_body_name="pelvis",
+            prim_body_name="base_link",
             resolution=0.1,
             size=(1.6, 1.0),
             debug_vis=False,
@@ -187,8 +180,8 @@ class TienKungWalkFlatEnvCfg:
         actor_obs_history_length=10,
         critic_obs_history_length=10,
         action_scale=0.25,
-        terminate_contacts_body_names=["knee_pitch.*", "shoulder_roll.*", "elbow_pitch.*", "pelvis"],
-        feet_body_names=["ankle_roll.*"],
+        terminate_contacts_body_names=["(left|right)_knee_link", "base_link"],
+        feet_body_names=["(left|right)_ankle_roll_link"],
     )
     reward = LiteRewardCfg()
     gait = GaitCfg()
@@ -246,7 +239,7 @@ class TienKungWalkFlatEnvCfg:
                 func=mdp.randomize_rigid_body_mass,
                 mode="startup",
                 params={
-                    "asset_cfg": SceneEntityCfg("robot", body_names="pelvis"),
+                    "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
                     "mass_distribution_params": (-5.0, 5.0),
                     "operation": "add",
                 },
@@ -287,7 +280,7 @@ class TienKungWalkFlatEnvCfg:
 
 
 @configclass
-class TienKungWalkAgentCfg(RslRlOnPolicyRunnerCfg):
+class Gp2WalkAgentCfg(RslRlOnPolicyRunnerCfg):
     seed = 42
     device = "cuda:0"
     num_steps_per_env = 24
@@ -322,20 +315,19 @@ class TienKungWalkAgentCfg(RslRlOnPolicyRunnerCfg):
     clip_actions = None
     save_interval = 100
     runner_class_name = "AmpOnPolicyRunner"
-    experiment_name = "walk"
+    experiment_name = "gp2_walk"
     run_name = ""
     logger = "tensorboard"
-    neptune_project = "walk"
-    wandb_project = "walk"
+    neptune_project = "gp2_walk"
+    wandb_project = "gp2_walk"
     resume = False
     load_run = ".*"
     load_checkpoint = "model_.*.pt"
 
     # amp parameter
     amp_reward_coef = 0.3
-    # amp_motion_files = ["legged_lab/envs/tienkung/datasets/motion_amp_expert/walk.txt"]
-    amp_motion_files = ["legged_lab/envs/tienkung/datasets/motion_amp_expert/tk_walk1_expert.txt"]
+    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/gp_walk1_expert.txt"]
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]
-    min_normalized_std = [0.05] * 20
+    min_normalized_std = [0.05] * 14
