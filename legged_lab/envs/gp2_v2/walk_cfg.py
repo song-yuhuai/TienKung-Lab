@@ -53,16 +53,16 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 @configclass
 class GaitCfg:
-    gait_air_ratio_l: float = 0.38
-    gait_air_ratio_r: float = 0.38
+    gait_air_ratio_l: float = 0.55
+    gait_air_ratio_r: float = 0.55
     gait_phase_offset_l: float = 0.38
     gait_phase_offset_r: float = 0.88
-    gait_cycle: float = 0.85
+    gait_cycle: float = 0.95
 
 
 @configclass
 class LiteRewardCfg:
-    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=1.0, params={"std": 0.5})
+    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=1.5, params={"std": 0.5})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -114,7 +114,7 @@ class LiteRewardCfg:
     dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-2.0)
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.15,
+        weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -128,7 +128,7 @@ class LiteRewardCfg:
     )
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.02,
+        weight=-0.01,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -142,15 +142,15 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=1.0, params={"delta_t": 0.02})
-    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=1.0, params={"delta_t": 0.02})
-    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.6, params={"delta_t": 0.02})
+    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.7, params={"delta_t": 0.02})
+    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=0.7, params={"delta_t": 0.02})
+    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.4, params={"delta_t": 0.02})
 
-    ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0005)
-    ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.001)
-    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-1.0)
-    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-1.0)
-    feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-2.0)
+    ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0004)
+    ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0008)
+    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.4)
+    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.4)
+    feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-1.0)
 
 
 @configclass
@@ -179,7 +179,7 @@ class Gp2WalkFlatEnvCfg:
     robot: RobotCfg = RobotCfg(
         actor_obs_history_length=10,
         critic_obs_history_length=10,
-        action_scale=0.25,
+        action_scale=0.35,
         terminate_contacts_body_names=["(left|right)_knee_link", "base_link"],
         feet_body_names=["(left|right)_ankle_roll_link"],
     )
@@ -208,7 +208,7 @@ class Gp2WalkFlatEnvCfg:
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=CommandRangesCfg(
-            lin_vel_x=(-0.6, 1.0), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.57, 1.57), heading=(-math.pi, math.pi)
+            lin_vel_x=(-0.6, 1.5), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.57, 1.57), heading=(-math.pi, math.pi)
         ),
     )
     noise: NoiseCfg = NoiseCfg(

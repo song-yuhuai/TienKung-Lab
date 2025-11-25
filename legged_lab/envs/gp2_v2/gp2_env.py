@@ -339,6 +339,43 @@ class Gp2Env(VecEnv):
 
     def compute_current_observations(self):
         robot = self.robot
+        # -------- one-time DOF / obs debug --------
+        if not hasattr(self, "_printed_obs_order"):
+            self._printed_obs_order = True
+            try:
+                joint_names = list(robot.joint_names)
+            except Exception:
+                joint_names = ["<failed to read joint_names>"]
+
+            print("\n=== GP2 compute_current_observations() DOF ORDER DEBUG ===")
+            print("full robot.joint_names order:")
+            print(joint_names)
+
+            # If the env ever uses an explicit subset/reindex, print it too.
+            for attr in ["_dof_ids", "_actuated_dof_ids", "_action_dof_ids"]:
+                if hasattr(self, attr):
+                    ids = getattr(self, attr)
+                    try:
+                        ids_list = ids.tolist() if hasattr(ids, "tolist") else list(ids)
+                        print(f"{attr} =", ids_list)
+                        print(
+                            f"{attr} joint order =",
+                            [joint_names[i] for i in ids_list],
+                        )
+                    except Exception as e:
+                        print(f"{attr} exists but failed to print order:", e)
+
+            print("num_actions =", self.num_actions)
+            print("===============================================\n")
+
+            # default joint pose (Isaac DOF order)
+            try:
+                djp = robot.data.default_joint_pos  # (num_envs, num_actions)
+                print("default_joint_pos shape:", tuple(djp.shape))
+                print("default_joint_pos (env0):", djp[0].detach().cpu().numpy().tolist())
+            except Exception as e:
+                print("failed to print default_joint_pos:", e)
+        # ------------------------------------------
         net_contact_forces = self.contact_sensor.data.net_forces_w_history
 
         ang_vel = robot.data.root_ang_vel_b

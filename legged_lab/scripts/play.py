@@ -89,6 +89,11 @@ def play():
     env_class = task_registry.get_task_class(env_class_name)
     env = env_class(env_cfg, args_cli.headless)
 
+    print("=== Isaac joint order ===")
+    print(env.robot.joint_names)
+    print("num_joints:", len(env.robot.joint_names))
+    print("num_actions:", env.num_actions)
+
     log_root_path = os.path.join("logs", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
