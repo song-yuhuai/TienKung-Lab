@@ -43,12 +43,12 @@ class SimToSimCfg:
         decimation = 4
         clip_observations = 100.0
         clip_actions = 100
-        action_scale = 0.3
+        action_scale = 0.35
         realtime_factor = 1.0  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
 
     class robot:
-        gait_air_ratio_l: float = 0.42
-        gait_air_ratio_r: float = 0.42
+        gait_air_ratio_l: float = 0.55
+        gait_air_ratio_r: float = 0.55
         gait_phase_offset_l: float = 0.38
         gait_phase_offset_r: float = 0.88
         gait_cycle: float = 0.95
@@ -87,7 +87,7 @@ class MujocoRunner:
         self.dof_vel = np.zeros(self.cfg.sim.num_action)
         self.action = np.zeros(self.cfg.sim.num_action)
         self.default_dof_pos = np.array(
-            [-0.28, 0.0, 0, 0.44, -0.16, 0, -0.28, 0.0, 0, 0.44, -0.16, 0, 0.05, 0.05]
+            [-0.43, 0.0, 0, 0.94, -0.51, 0, -0.43, 0.0, 0, 0.94, -0.51, 0, 0.05, 0.05]
         )
         self.episode_length_buf = 0
         self.gait_phase = np.zeros(2)
@@ -133,6 +133,10 @@ class MujocoRunner:
             (self.cfg.sim.num_obs_per_step * self.cfg.sim.actor_obs_history_length,), dtype=np.float32
         )
 
+        # --- NEW: high-level mode ('stand' or 'walk') ---
+        self.mode = "stand"   # default start in stand mode
+        # self.mode = "walk"   # falling back to walk mode temporarily
+
     def get_obs(self) -> np.ndarray:
         """
         Compute current observation vector from MuJoCo sensors and internal state.
@@ -168,11 +172,17 @@ class MujocoRunner:
 
     def position_control(self) -> np.ndarray:
         """
-        Apply position control using scaled action.
+        Compute target joint positions in MuJoCo order, depending on mode.
 
-        Returns:
-            np.ndarray: Target joint positions in MuJoCo order.
+        - 'stand': hold default_dof_pos using PD.
+        - 'walk' : RL policy output around default_dof_pos.
         """
+        if self.mode == "stand":
+            # In stand mode, ignore RL action and just hold the default pose.
+            # (Later you can tweak PD gains per mode at the real controller level.)
+            return self.default_dof_pos
+
+        # Walk mode: same as before
         actions_scaled = self.action * self.cfg.sim.action_scale
         return actions_scaled[self.isaac_to_mujoco_idx] + self.default_dof_pos
 
@@ -266,6 +276,20 @@ class MujocoRunner:
                     self.adjust_command_vel(2, -0.2)
                 elif key.char == "9":  # NumPad 9      yaw -= 0.2
                     self.adjust_command_vel(2, 0.2)
+                # --- NEW: mode switching ---
+                elif key.char in ("s", "S"):
+                    print("[INFO] Switch mode -> STAND")
+                    self.mode = "stand"
+                    # optional: zero command when entering stand
+                    self.command_vel[:] = 0.0
+                elif key.char in ("w", "W"):
+                    print("[INFO] Switch mode -> WALK")
+                    self.mode = "walk"
+                # --- NEW: print root height ---
+                elif key.char in ("h", "H"):
+                    # qpos[0:3] = root position (x, y, z)
+                    z = float(self.data.qpos[2])
+                    print(f"[DEBUG] Current root height z = {z:.4f}")
             except AttributeError:
                 pass
 
@@ -324,6 +348,15 @@ class MujocoRunner:
                 self.command_vel[0] = np.clip(vx, -1.0, 1.0)
                 self.command_vel[1] = np.clip(vy, -1.0, 1.0)
                 self.command_vel[2] = np.clip(yaw, -1.0, 1.0)
+
+                try:
+                    if js.get_button(0):   # A button -> walk
+                        self.mode = "walk"
+                    if js.get_button(1):   # B button -> stand
+                        self.mode = "stand"
+                        self.command_vel[:] = 0.0
+                except Exception:
+                    pass
 
                 clock.tick(60)  # ~60 Hz joystick polling
 
@@ -384,8 +417,8 @@ if __name__ == "__main__":
 
     # Set gait parameters according to task
     if args.task == "gp2_walk":
-        sim_cfg.robot.gait_air_ratio_l = 0.42
-        sim_cfg.robot.gait_air_ratio_r = 0.42
+        sim_cfg.robot.gait_air_ratio_l = 0.55
+        sim_cfg.robot.gait_air_ratio_r = 0.55
         sim_cfg.robot.gait_phase_offset_l = 0.38
         sim_cfg.robot.gait_phase_offset_r = 0.88
         sim_cfg.robot.gait_cycle = 0.95
