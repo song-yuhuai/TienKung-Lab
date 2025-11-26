@@ -26,6 +26,7 @@ import numpy as np
 import torch
 from pynput import keyboard
 import time
+import threading
 
 class SimToSimCfg:
     """Configuration class for sim2sim parameters.
@@ -36,7 +37,7 @@ class SimToSimCfg:
     class sim:
         sim_duration = 100.0
         num_action = 14
-        num_obs_per_step = 57
+        num_obs_per_step = 57   # 14*3+15
         actor_obs_history_length = 10
         dt = 0.005
         decimation = 4
@@ -64,20 +65,16 @@ class MujocoRunner:
         model_path (str): Path to the MuJoCo XML model.
     """
 
-    def __init__(self, cfg: SimToSimCfg, policy_path, model_path):
+    def __init__(self, cfg: SimToSimCfg, policy_path, model_path, use_joystick: bool = False):
         self.cfg = cfg
+        self.use_joystick = use_joystick
+        self.running = True
         network_path = policy_path
         self.model = mujoco.MjModel.from_xml_path(model_path)
         self.model.opt.timestep = self.cfg.sim.dt
 
         self.policy = torch.jit.load(network_path)
         self.data = mujoco.MjData(self.model)
-
-        # ---- temporary spawn tweak ----
-        self.data.qpos[2] += 0.0        # lift base by 3 cm (tune 0.01~0.05)
-        self.data.qvel[:] = 0.0
-        mujoco.mj_forward(self.model, self.data)
-        # -------------------------------
 
         self.viewer = mujoco_viewer.MujocoViewer(self.model, self.data)
         self.viewer._render_every_frame = False
@@ -143,8 +140,8 @@ class MujocoRunner:
         Returns:
             np.ndarray: Normalized and clipped observation history.
         """
-        self.dof_pos = self.data.sensordata[0:14]
-        self.dof_vel = self.data.sensordata[14:28]
+        self.dof_pos = self.data.sensordata[16:30]  #first 16 elements are imu data, data starting from sensordata[16] are actual joint data
+        self.dof_vel = self.data.sensordata[30:44]
 
         obs = np.concatenate(
             [
@@ -185,6 +182,8 @@ class MujocoRunner:
         """
         self.setup_keyboard_listener()
         self.listener.start()
+        if self.use_joystick:
+            self.setup_joystick()
 
         while self.data.time < self.cfg.sim.sim_duration:
             self.obs_history = self.get_obs()
@@ -206,6 +205,7 @@ class MujocoRunner:
             self.episode_length_buf += 1
             self.calculate_gait_para()
 
+        self.running = False
         self.listener.stop()
         self.viewer.close()
 
@@ -271,6 +271,69 @@ class MujocoRunner:
 
         self.listener = keyboard.Listener(on_press=on_press)
 
+    def setup_joystick(self, max_lin: float = 1.0, max_yaw: float = 1.0) -> None:
+        """
+        Set up joystick/gamepad control for command velocity.
+        Left stick:  x/y translation
+        Right stick (X axis): yaw rate.
+        """
+        try:
+            import os
+            os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+            import pygame
+        except ImportError:
+            print("[WARN] pygame not installed, joystick disabled. `pip install pygame` to enable.")
+            return
+
+        # Only init joystick, don't touch display/video
+        pygame.joystick.init()
+
+        pygame.init()
+        pygame.joystick.init()
+        if pygame.joystick.get_count() == 0:
+            print("[WARN] No joystick detected, joystick control disabled.")
+            return
+
+        js = pygame.joystick.Joystick(0)
+        js.init()
+        print(f"[INFO] Joystick connected: {js.get_name()}")
+
+        def joystick_loop():
+            clock = pygame.time.Clock()
+            while self.running:
+                # Process events so joystick state updates
+                pygame.event.pump()
+
+                # Typical mapping:
+                #   axis 0: left stick X  (left/right)
+                #   axis 1: left stick Y  (up/down)
+                #   axis 3: right stick X (yaw)
+                lx = js.get_axis(0)   # left/right
+                ly = js.get_axis(1)   # forward/back
+                try:
+                    rx = js.get_axis(3)
+                except IndexError:
+                    rx = 0.0
+
+                # Map to command velocities
+                vx = -ly * max_lin          # forward: push stick up
+                vy = lx * max_lin           # left/right
+                yaw = rx * max_yaw          # yaw rate
+
+                # Write into same command_vel used by keyboard
+                self.command_vel[0] = np.clip(vx, -1.0, 1.0)
+                self.command_vel[1] = np.clip(vy, -1.0, 1.0)
+                self.command_vel[2] = np.clip(yaw, -1.0, 1.0)
+
+                clock.tick(60)  # ~60 Hz joystick polling
+
+            # Cleanup on exit
+            js.quit()
+            pygame.joystick.quit()
+
+        self.joystick_thread = threading.Thread(target=joystick_loop, daemon=True)
+        self.joystick_thread.start()
+
 
 if __name__ == "__main__":
     LEGGED_LAB_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -295,6 +358,11 @@ if __name__ == "__main__":
         help="Path to model.xml",
     )
     parser.add_argument("--duration", type=float, default=100.0, help="Simulation duration in seconds")
+    parser.add_argument(
+        "--joystick",
+        action="store_true",
+        help="Use joystick/gamepad to control command velocity",
+    )
     args = parser.parse_args()
 
     if args.policy is None:
@@ -332,5 +400,6 @@ if __name__ == "__main__":
         cfg=sim_cfg,
         policy_path=args.policy,
         model_path=args.model,
+        use_joystick=args.joystick,
     )
     runner.run()

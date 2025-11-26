@@ -277,7 +277,7 @@
     <jointvel name="jointvel_right_shoulder_pitch_joint" joint="right_shoulder_pitch_joint" noise="0" />
   </sensor>
   <keyframe>
-    <key name="home_default" qpos="0 0 0.61 1 0. 0. 0. -0.283 0.0 -0.0 0.44 -0.157 0.0 0.05 -0.283 -0.0 0.0 0.44 -0.157 0.0 0.05" />
+    <key name="home_default" qpos="0 0 0.67 1 0. 0. 0. -0.283 0.0 -0.0 0.44 -0.157 0.0 0.05 -0.283 -0.0 0.0 0.44 -0.157 0.0 0.05" />
   </keyframe>
   <asset>
     <texture type="skybox" builtin="flat" rgb1="0 0 0" rgb2="0 0 0" width="512" height="3072"/>
