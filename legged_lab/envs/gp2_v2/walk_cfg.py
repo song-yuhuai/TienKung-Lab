@@ -179,7 +179,7 @@ class Gp2WalkFlatEnvCfg:
     robot: RobotCfg = RobotCfg(
         actor_obs_history_length=10,
         critic_obs_history_length=10,
-        action_scale=0.35,
+        action_scale=0.25,
         terminate_contacts_body_names=["(left|right)_knee_link", "base_link"],
         feet_body_names=["(left|right)_ankle_roll_link"],
     )

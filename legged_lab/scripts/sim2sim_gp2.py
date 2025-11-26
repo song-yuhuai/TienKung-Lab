@@ -43,7 +43,7 @@ class SimToSimCfg:
         decimation = 4
         clip_observations = 100.0
         clip_actions = 100
-        action_scale = 0.35
+        action_scale = 0.25
         realtime_factor = 1.0  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
 
     class robot:
