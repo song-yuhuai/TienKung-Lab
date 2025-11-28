@@ -80,6 +80,14 @@ class MujocoRunner:
         self.viewer._render_every_frame = False
         self.init_variables()
 
+        # --- Push-test state ---
+        self.push_steps_remaining = 0
+        self.push_force = np.zeros(3)  # world-frame force [Fx, Fy, Fz]
+        # pick the body you want to push, adjust name if needed
+        self.push_body_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_BODY, "base_link"
+        )
+
     def init_variables(self) -> None:
         """Initialize simulation variables and joint index mappings."""
         self.dt = self.cfg.sim.decimation * self.cfg.sim.dt
@@ -135,7 +143,17 @@ class MujocoRunner:
 
         # --- NEW: high-level mode ('stand' or 'walk') ---
         self.mode = "stand"   # default start in stand mode
-        # self.mode = "walk"   # falling back to walk mode temporarily
+
+        # --- NEW: locomotion state machine params ---
+        # thresholds on command magnitude
+        self.loco_enter_thresh = 0.20   # cmd_mag above this -> consider walking
+        self.loco_exit_thresh  = 0.05   # cmd_mag below this -> consider standing
+        # dwell times
+        self.loco_enter_time   = 0.20   # [s] cmd must be active to enter WALK
+        self.loco_exit_time    = 1.50   # [s] cmd must be neutral to return STAND
+        # timers
+        self.loco_cmd_active_time  = 0.0
+        self.loco_cmd_neutral_time = 0.0
 
     def get_obs(self) -> np.ndarray:
         """
@@ -200,8 +218,27 @@ class MujocoRunner:
             self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:14]
             self.action = np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions)
 
+            # --- NEW: automatic stand/walk switching based on joystick command ---
+            self.update_locomotion_mode(self.dt)
+
             for sim_update in range(self.cfg.sim.decimation):
                 step_start_time = time.time()
+
+                # Apply external push if scheduled
+                if self.push_steps_remaining > 0:
+                    # xfrc_applied: 6D force/torque for each body, in world frame
+                    # [Fx, Fy, Fz, Tx, Ty, Tz]
+                    base = self.push_body_id * 6
+                    self.data.xfrc_applied[base + 0] = self.push_force[0]
+                    self.data.xfrc_applied[base + 1] = self.push_force[1]
+                    self.data.xfrc_applied[base + 2] = self.push_force[2]
+                    # no torque
+                    self.data.xfrc_applied[base + 3: base + 6] = 0.0
+
+                    self.push_steps_remaining -= 1
+                else:
+                    # clear any previous external forces
+                    self.data.xfrc_applied[:] = 0.0
 
                 self.data.ctrl = self.position_control()
                 mujoco.mj_step(self.model, self.data)
@@ -246,6 +283,43 @@ class MujocoRunner:
         self.gait_phase[0] = (t + self.phase_offset[0]) % 1.0
         self.gait_phase[1] = (t + self.phase_offset[1]) % 1.0
 
+    def update_locomotion_mode(self, dt: float):
+        """
+        Automatic stand/walk switching based on command_vel magnitude.
+
+        - If joystick is moved for loco_enter_time -> mode = 'walk'
+        - If joystick stays near zero for loco_exit_time -> mode = 'stand'
+        """
+        # command magnitude: translational + yaw
+        cmd_mag = float(np.linalg.norm(self.command_vel[:2]) + abs(self.command_vel[2]))
+
+        # track how long command has been "active" vs "neutral"
+        if cmd_mag > self.loco_enter_thresh:
+            self.loco_cmd_active_time  += dt
+            self.loco_cmd_neutral_time  = 0.0
+        elif cmd_mag < self.loco_exit_thresh:
+            self.loco_cmd_neutral_time += dt
+            self.loco_cmd_active_time   = 0.0
+        else:
+            # between thresholds -> reset timers (hold current mode)
+            self.loco_cmd_active_time  = 0.0
+            self.loco_cmd_neutral_time = 0.0
+
+        # state transitions
+        if self.mode == "stand":
+            if self.loco_cmd_active_time > self.loco_enter_time:
+                print("[LOCO] auto-switch STAND -> WALK (cmd active)")
+                self.mode = "walk"
+                # reset timer so we don't immediately flip back
+                self.loco_cmd_active_time = 0.0
+
+        elif self.mode == "walk":
+            if self.loco_cmd_neutral_time > self.loco_exit_time:
+                print("[LOCO] auto-switch WALK -> STAND (cmd neutral)")
+                self.mode = "stand"
+                self.command_vel[:] = 0.0
+                self.loco_cmd_neutral_time = 0.0
+
     def adjust_command_vel(self, idx: int, increment: float) -> None:
         """
         Adjust command velocity vector.
@@ -256,6 +330,34 @@ class MujocoRunner:
         """
         self.command_vel[idx] += increment
         self.command_vel[idx] = np.clip(self.command_vel[idx], -1.0, 1.0)  # vel clip
+
+    def apply_push(self, force_xyz, duration=0.2):
+        """
+        Schedule a push on the torso.
+
+        Args:
+            force_xyz: np.array or list of 3 floats, world-frame force [Fx, Fy, Fz] in Newtons.
+            duration:  time to apply the force (seconds).
+        """
+        self.push_force = np.array(force_xyz, dtype=float)
+        self.push_steps_remaining = int(duration / self.cfg.sim.dt)
+        print(f"[INFO] Scheduled push: F={self.push_force}, steps={self.push_steps_remaining}")
+
+    def print_action_debug(self):
+        """Print current action vector and highlight ankle pitches."""
+        a = self.action
+        # full vector
+        print("[DEBUG] action (isaac order):")
+        print("  ", np.array2string(a, precision=4, floatmode="fixed"))
+
+        # highlight a few key joints
+        print("[DEBUG] key joints (isaac indices):")
+        print(f"  left_hip_pitch   [0]  = {a[0]: .4f}")
+        print(f"  left_knee        [3]  = {a[3]: .4f}")
+        print(f"  left_ankle_pitch [4]  = {a[4]: .4f}")
+        print(f"  right_hip_pitch  [6]  = {a[6]: .4f}")
+        print(f"  right_knee       [9]  = {a[9]: .4f}")
+        print(f"  right_ankle_pitch[10] = {a[10]: .4f}")
 
     def setup_keyboard_listener(self) -> None:
         """
@@ -285,11 +387,22 @@ class MujocoRunner:
                 elif key.char in ("w", "W"):
                     print("[INFO] Switch mode -> WALK")
                     self.mode = "walk"
+                    print("[INFO] Printing current action vector at zero-cmd state")
+                    self.print_action_debug()
                 # --- NEW: print root height ---
                 elif key.char in ("h", "H"):
                     # qpos[0:3] = root position (x, y, z)
                     z = float(self.data.qpos[2])
                     print(f"[DEBUG] Current root height z = {z:.4f}")
+                # --- NEW: small push test ---
+                elif key.char in ("p", "P"):
+                    # example: forward push in +x direction of 200 N for 0.2 s
+                    # tune magnitude/duration as needed
+                    self.apply_push(force_xyz=[14.0, 0.0, 0.0], duration=0.2)
+                # --- NEW: print current action vector ---
+                elif key.char in ("a", "A"):
+                    print("[INFO] Printing current action vector at zero-cmd state")
+                    self.print_action_debug()
             except AttributeError:
                 pass
 

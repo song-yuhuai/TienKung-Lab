@@ -53,7 +53,7 @@
       
       <body name="left_hip_pitch_link" pos="0 0.079 0">
         <inertial pos="0.002 0.045 0" mass="0.422" diaginertia="0.001 0.001 0.001" />
-        <joint name="left_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.62 2.62" limited="true" damping="4" armature="0.01"/>
+        <joint name="left_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.62 2.62" limited="true" damping="5" armature="0.01"/>
         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.75294 0.75294 0.75294 1" mesh="L_hip_pitch_link" />
         <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="L_hip_pitch_link" contype="0" conaffinity="0" />
         <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="L_hip_pitch_link" contype="0" conaffinity="0" density="0" group="1" />
@@ -74,14 +74,14 @@
             <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="L_hip_yaw_link" contype="0" conaffinity="0" />
             <body name="left_knee_link" pos="-0.035 0.0406 -0.1139">
               <inertial pos="0.033 -0.041 -0.132" mass="2.033" diaginertia="0.058 0.056 0.011" />
-              <joint name="left_knee_joint" pos="0 0 0" axis="0 1 0" range="-0.17 2.97" limited="true" damping="8" armature="0.01"/>
+              <joint name="left_knee_joint" pos="0 0 0" axis="0 1 0" range="-0.17 2.97" limited="true" damping="10" armature="0.01"/>
               <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="L_knee_link" />
               <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="L_knee_link" contype="0" conaffinity="0" />
               <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="L_knee_link" contype="0" conaffinity="0" density="0" group="1" />
               <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="L_knee_link" contype="0" conaffinity="0" />
               <body name="left_ankle_pitch_link" pos="0.035 -0.0241 -0.28">
                 <inertial pos="0 -0.016 0" mass="0.056" diaginertia="0.0001 0.0001 0.0001" />
-                <joint name="left_ankle_pitch_joint" pos="0 0 0" axis="0 1 0" range="-0.87267 0.5236" limited="true" damping="4" armature="0.01"/>
+                <joint name="left_ankle_pitch_joint" pos="0 0 0" axis="0 1 0" range="-0.87267 0.5236" limited="true" damping="8" armature="0.01"/>
                 <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.792157 0.819608 0.929412 1" mesh="L_ankle_pitch_link" />
                 <geom type="mesh" rgba="0.792157 0.819608 0.929412 1" mesh="L_ankle_pitch_link" contype="0" conaffinity="0" />
                 <geom type="mesh" rgba="0.792157 0.819608 0.929412 1" mesh="L_ankle_pitch_link" contype="0" conaffinity="0" density="0" group="1" />
@@ -101,7 +101,7 @@
       </body>
       <body name="right_hip_pitch_link" pos="0 -0.079 0">
         <inertial pos="0.002 -0.045 0" mass="0.422" diaginertia="0.001 0.001 0.001" />
-        <joint name="right_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.62 2.62" limited="true" damping="4" armature="0.01"/>
+        <joint name="right_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.62 2.62" limited="true" damping="5" armature="0.01"/>
         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.75294 0.75294 0.75294 1" mesh="R_hip_pitch_link" />
         <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="R_hip_pitch_link" contype="0" conaffinity="0" />
         <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="R_hip_pitch_link" contype="0" conaffinity="0" density="0" group="1" />
@@ -122,14 +122,14 @@
             <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="R_hip_yaw_link" contype="0" conaffinity="0" />
             <body name="right_knee_link" pos="-0.035 -0.0406 -0.1139">
               <inertial pos="0.033 0.041 -0.132" mass="2.033" diaginertia="0.058 0.056 0.011" />
-              <joint name="right_knee_joint" pos="0 0 0" axis="0 1 0" range="-0.17 2.97" limited="true" damping="8" armature="0.01"/>
+              <joint name="right_knee_joint" pos="0 0 0" axis="0 1 0" range="-0.17 2.97" limited="true" damping="10" armature="0.01"/>
               <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.75294 0.75294 0.75294 1" mesh="R_knee_link" />
               <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="R_knee_link" contype="0" conaffinity="0" />
               <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="R_knee_link" contype="0" conaffinity="0" density="0" group="1" />
               <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="R_knee_link" contype="0" conaffinity="0" />
               <body name="right_ankle_pitch_link" pos="0.035 0.0241 -0.28">
                 <inertial pos="0 0.017 0" mass="0.056" diaginertia="0.0001 0.0001 0.0001" />
-                <joint name="right_ankle_pitch_joint" pos="0 0 0" axis="0 1 0" range="-0.87267 0.5236" limited="true" damping="4" armature="0.01"/>
+                <joint name="right_ankle_pitch_joint" pos="0 0 0" axis="0 1 0" range="-0.87267 0.5236" limited="true" damping="8" armature="0.01"/>
                 <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.79216 0.81961 0.93333 1" mesh="R_ankle_pitch_link" />
                 <geom type="mesh" rgba="0.79216 0.81961 0.93333 1" mesh="R_ankle_pitch_link" contype="0" conaffinity="0" />
                 <geom type="mesh" rgba="0.79216 0.81961 0.93333 1" mesh="R_ankle_pitch_link" contype="0" conaffinity="0" density="0" group="1" />
