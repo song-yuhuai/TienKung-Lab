@@ -144,16 +144,24 @@ class MujocoRunner:
         # --- NEW: high-level mode ('stand' or 'walk') ---
         self.mode = "stand"   # default start in stand mode
 
+        # --- Stand transition helper ---
+        self.stand_transition_active = False
+        self.stand_transition_t = 0.0
+        self.stand_transition_duration = 0.1  # seconds for walk->stand blend
+        self.stand_start_pose = self.default_dof_pos.copy()
+
         # --- NEW: locomotion state machine params ---
         # thresholds on command magnitude
         self.loco_enter_thresh = 0.20   # cmd_mag above this -> consider walking
         self.loco_exit_thresh  = 0.05   # cmd_mag below this -> consider standing
         # dwell times
         self.loco_enter_time   = 0.20   # [s] cmd must be active to enter WALK
-        self.loco_exit_time    = 0.50   # [s] cmd must be neutral to return STAND
+        self.loco_exit_time    = 1.50   # [s] cmd must be neutral to return STAND
         # timers
         self.loco_cmd_active_time  = 0.0
         self.loco_cmd_neutral_time = 0.0
+
+        self.action_gate = 1.0
 
     def get_obs(self) -> np.ndarray:
         """
@@ -192,17 +200,32 @@ class MujocoRunner:
         """
         Compute target joint positions in MuJoCo order, depending on mode.
 
-        - 'stand': hold default_dof_pos using PD.
-        - 'walk' : RL policy output around default_dof_pos.
+        - 'walk'       : RL policy output around default_dof_pos.
+        - 'stand'      : hold default_dof_pos using PD (after transition).
+        - transition   : blend from last walk target to default_dof_pos.
         """
-        if self.mode == "stand":
-            # In stand mode, ignore RL action and just hold the default pose.
-            # (Later you can tweak PD gains per mode at the real controller level.)
-            return self.default_dof_pos
+        if self.mode == "walk":
+            # normal RL tracking but gated by command/speed
+            actions_scaled = (self.action_gate * self.action) * self.cfg.sim.action_scale
+            return actions_scaled[self.isaac_to_mujoco_idx] + self.default_dof_pos
 
-        # Walk mode: same as before
-        actions_scaled = self.action * self.cfg.sim.action_scale
-        return actions_scaled[self.isaac_to_mujoco_idx] + self.default_dof_pos
+        # STAND mode (may be in transition)
+        if self.stand_transition_active:
+            # progress 0 -> 1 over stand_transition_duration
+            alpha = min(self.stand_transition_t / self.stand_transition_duration, 1.0)
+            # smooth easing instead of linear: alpha^2 * (3 - 2 alpha)
+            alpha_ease = alpha * alpha * (3.0 - 2.0 * alpha)
+
+            q = (1.0 - alpha_ease) * self.stand_start_pose + alpha_ease * self.default_dof_pos
+
+            if alpha >= 1.0:
+                self.stand_transition_active = False
+                print("[LOCO] Stand transition complete; holding default pose")
+
+            return q
+
+        # pure stand: transition finished
+        return self.default_dof_pos
 
     def run(self) -> None:
         """
@@ -218,8 +241,15 @@ class MujocoRunner:
             self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:14]
             self.action = np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions)
 
+            # NEW: compute gate
+            self.action_gate = self.compute_action_gate()
+
             # --- NEW: automatic stand/walk switching based on joystick command ---
             self.update_locomotion_mode(self.dt)
+
+            # update transition timer if active
+            if self.stand_transition_active:
+                self.stand_transition_t += self.dt
 
             for sim_update in range(self.cfg.sim.decimation):
                 step_start_time = time.time()
@@ -310,15 +340,31 @@ class MujocoRunner:
             if self.loco_cmd_active_time > self.loco_enter_time:
                 print("[LOCO] auto-switch STAND -> WALK (cmd active)")
                 self.mode = "walk"
-                # reset timer so we don't immediately flip back
                 self.loco_cmd_active_time = 0.0
 
         elif self.mode == "walk":
             if self.loco_cmd_neutral_time > self.loco_exit_time:
-                print("[LOCO] auto-switch WALK -> STAND (cmd neutral)")
-                self.mode = "stand"
-                self.command_vel[:] = 0.0
+                print("[LOCO] auto-switch WALK -> STAND (cmd neutral, starting blend)")
+                self.start_stand_transition()      # <-- start blended transition
                 self.loco_cmd_neutral_time = 0.0
+
+    def compute_action_gate(self) -> float:
+        # how “active” we want RL to be
+        cmd_mag = float(np.linalg.norm(self.command_vel[:2]) + abs(self.command_vel[2]))
+        # normalize by some scale; 0.3–0.4 is a decent “start walking” speed
+        v_scale = 0.3
+        gate_cmd = np.clip(cmd_mag / v_scale, 0.0, 1.0)
+
+        # optional: also look at root speed to avoid shutting RL off while still moving
+        vx = float(self.data.qvel[0])
+        vy = float(self.data.qvel[1])
+        root_speed = np.hypot(vx, vy)
+        v_root_scale = 0.3
+        gate_root = np.clip(root_speed / v_root_scale, 0.0, 1.0)
+
+        # take the max: if either cmd or root speed is significant, keep RL alive
+        gate = max(gate_cmd, gate_root)
+        return gate
 
     def adjust_command_vel(self, idx: int, increment: float) -> None:
         """
@@ -342,6 +388,22 @@ class MujocoRunner:
         self.push_force = np.array(force_xyz, dtype=float)
         self.push_steps_remaining = int(duration / self.cfg.sim.dt)
         print(f"[INFO] Scheduled push: F={self.push_force}, steps={self.push_steps_remaining}")
+
+    def start_stand_transition(self):
+        """
+        Capture current walk target as the starting pose for a smooth
+        transition to the canonical stand pose.
+        """
+        # what RL *wants* right now:
+        actions_scaled = self.action * self.cfg.sim.action_scale
+        walk_target = actions_scaled[self.isaac_to_mujoco_idx] + self.default_dof_pos
+
+        self.stand_start_pose = walk_target.copy()
+        self.stand_transition_active = True
+        self.stand_transition_t = 0.0
+        self.mode = "stand"
+        self.command_vel[:] = 0.0
+        print("[LOCO] Begin smooth WALK -> STAND transition")
 
     def print_action_debug(self):
         """Print current action vector and highlight ankle pitches."""
@@ -380,10 +442,8 @@ class MujocoRunner:
                     self.adjust_command_vel(2, 0.2)
                 # --- NEW: mode switching ---
                 elif key.char in ("s", "S"):
-                    print("[INFO] Switch mode -> STAND")
-                    self.mode = "stand"
-                    # optional: zero command when entering stand
-                    self.command_vel[:] = 0.0
+                    print("[INFO] User requested STAND; starting transition")
+                    self.start_stand_transition()
                 elif key.char in ("w", "W"):
                     print("[INFO] Switch mode -> WALK")
                     self.mode = "walk"

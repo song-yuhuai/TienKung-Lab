@@ -62,7 +62,7 @@ class GaitCfg:
 
 @configclass
 class LiteRewardCfg:
-    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=1.5, params={"std": 0.5})
+    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=2.0, params={"std": 0.5})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -142,14 +142,22 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.0, params={"delta_t": 0.02})
+    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.7, params={"delta_t": 0.02})
     gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=0.7, params={"delta_t": 0.02})
     gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.4, params={"delta_t": 0.02})
+    idle_feet_vel_l2 = RewTerm(func=mdp.idle_feet_vel_l2, weight=-0.1,
+    params={
+        "asset_cfg": SceneEntityCfg(
+            name="robot",
+            body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+        )
+    },
+)
 
     ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0004)
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0008)
-    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.4)
-    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.4)
+    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.1)
+    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.1)
     feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-1.0)
 
 
@@ -202,7 +210,7 @@ class Gp2WalkFlatEnvCfg:
     )
     commands: CommandsCfg = CommandsCfg(
         resampling_time_range=(10.0, 10.0),
-        rel_standing_envs=0.25,
+        rel_standing_envs=0.2,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,

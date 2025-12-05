@@ -30,6 +30,10 @@ if TYPE_CHECKING:
     from legged_lab.envs.base.base_env import BaseEnv
     from legged_lab.envs.tienkung.tienkung_env import TienKungEnv
 
+def _cmd_mag(env: BaseEnv | TienKungEnv) -> torch.Tensor:
+    """Approx magnitude of commanded motion (lin x,y + yaw)."""
+    cmd = env.command_generator.command  # (N, 3+?)
+    return torch.norm(cmd[:, :2], dim=1) + torch.abs(cmd[:, 2])
 
 def track_lin_vel_xy_yaw_frame_exp(
     env: BaseEnv | TienKungEnv, std: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
@@ -277,18 +281,54 @@ def gait_feet_frc_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor
 
 
 def gait_feet_spd_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor:
-    """Penalize foot speed during the support phase of the gait."""
+    """Penalize foot speed during the support phase of the gait.
+    Gated by commanded speed so it doesn't encourage stepping when command ~ 0.
+    """
     left_spd_support_mask = gait_clock(env.gait_phase[:, 0], env.phase_ratio[:, 0], delta_t)[1]
     right_spd_support_mask = gait_clock(env.gait_phase[:, 1], env.phase_ratio[:, 1], delta_t)[1]
-    left_spd_score = left_spd_support_mask * (torch.exp(-100 * torch.square(env.avg_feet_speed_per_step[:, 0])))
-    right_spd_score = right_spd_support_mask * (torch.exp(-100 * torch.square(env.avg_feet_speed_per_step[:, 1])))
-    return left_spd_score + right_spd_score
+
+    left_spd_score = left_spd_support_mask * torch.exp(-100 * torch.square(env.avg_feet_speed_per_step[:, 0]))
+    right_spd_score = right_spd_support_mask * torch.exp(-100 * torch.square(env.avg_feet_speed_per_step[:, 1]))
+    raw_score = left_spd_score + right_spd_score
+
+    # ---- command gating ----
+    cmd_mag = _cmd_mag(env)  # ~ |v| + |yaw|
+    idle_th = 0.1   # below this = stand
+    walk_th = 0.3   # above this = full gait shaping
+
+    gate = ((cmd_mag - idle_th) / (walk_th - idle_th)).clamp(0.0, 1.0)
+    return gate * raw_score
 
 
 def gait_feet_frc_support_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor:
-    """Reward that promotes proper support force during stance (support) phase."""
+    """Reward proper support force during stance.
+    Gated by commanded speed to avoid 'marching in place' at zero command.
+    """
     left_frc_support_mask = gait_clock(env.gait_phase[:, 0], env.phase_ratio[:, 0], delta_t)[1]
     right_frc_support_mask = gait_clock(env.gait_phase[:, 1], env.phase_ratio[:, 1], delta_t)[1]
+
     left_frc_score = left_frc_support_mask * (1 - torch.exp(-10 * torch.square(env.avg_feet_force_per_step[:, 0])))
     right_frc_score = right_frc_support_mask * (1 - torch.exp(-10 * torch.square(env.avg_feet_force_per_step[:, 1])))
-    return left_frc_score + right_frc_score
+    raw_score = left_frc_score + right_frc_score
+
+    cmd_mag = _cmd_mag(env)
+    idle_th = 0.1
+    walk_th = 0.3
+    gate = ((cmd_mag - idle_th) / (walk_th - idle_th)).clamp(0.0, 1.0)
+
+    return gate * raw_score
+
+def idle_feet_vel_l2(
+    env: TienKungEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Penalize foot velocity when command is near zero (for standing)."""
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    # world-frame velocities of feet
+    feet_vel = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]  # (N, n_feet, 3)
+    feet_speed2 = torch.sum(feet_vel ** 2, dim=(1, 2))              # (N,)
+
+    cmd_mag = _cmd_mag(env)
+    idle_flag = cmd_mag < 0.1
+    return idle_flag * feet_speed2
+

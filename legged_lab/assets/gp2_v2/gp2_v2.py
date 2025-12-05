@@ -82,15 +82,15 @@ GP2_V2_CFG = ArticulationCfg(
             },
             stiffness={
                 "(left|right)_hip_roll_joint": 100,
-                "(left|right)_hip_pitch_joint": 100,
+                "(left|right)_hip_pitch_joint": 150,
                 "(left|right)_hip_yaw_joint": 100,
-                "(left|right)_knee_joint": 150,
+                "(left|right)_knee_joint": 180,
             },
             damping={
-                "(left|right)_hip_pitch_joint": 4,
+                "(left|right)_hip_pitch_joint": 5,
                 "(left|right)_hip_roll_joint": 4,
                 "(left|right)_hip_yaw_joint": 4,
-                "(left|right)_knee_joint": 8,
+                "(left|right)_knee_joint": 10,
             },
         ),
         "feet": ImplicitActuatorCfg(
@@ -107,11 +107,11 @@ GP2_V2_CFG = ArticulationCfg(
                 "(left|right)_ankle_roll_joint": 37,
             },
             stiffness={
-                "(left|right)_ankle_pitch_joint": 40,
+                "(left|right)_ankle_pitch_joint": 150,
                 "(left|right)_ankle_roll_joint": 40,
             },
             damping={
-                "(left|right)_ankle_pitch_joint": 4,
+                "(left|right)_ankle_pitch_joint": 8,
                 "(left|right)_ankle_roll_joint": 4,
             },
         ),
