@@ -314,11 +314,12 @@ class MujocoRunner:
                 self.loco_cmd_active_time = 0.0
 
         elif self.mode == "walk":
-            if self.loco_cmd_neutral_time > self.loco_exit_time:
-                print("[LOCO] auto-switch WALK -> STAND (cmd neutral)")
-                self.mode = "stand"
-                self.command_vel[:] = 0.0
-                self.loco_cmd_neutral_time = 0.0
+            # if self.loco_cmd_neutral_time > self.loco_exit_time:
+            #     print("[LOCO] auto-switch WALK -> STAND (cmd neutral)")
+            #     self.mode = "stand"
+            #     self.command_vel[:] = 0.0
+            #     self.loco_cmd_neutral_time = 0.0
+            pass
 
     def adjust_command_vel(self, idx: int, increment: float) -> None:
         """
