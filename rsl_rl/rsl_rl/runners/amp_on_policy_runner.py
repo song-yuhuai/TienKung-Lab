@@ -246,6 +246,13 @@ class AmpOnPolicyRunner:
                     # Step the environment
                     obs, rewards, dones, infos = self.env.step(actions.to(self.env.device))
                     next_amp_obs = self.env.get_amp_obs_for_expert_trans()
+
+                    # --- NEW: command magnitude (same as _cmd_mag) ---
+                    cmd = self.env.command_generator.command.to(self.device)  # (N, 3+)
+                    cmd_lin = torch.norm(cmd[:, :2], dim=1)
+                    cmd_yaw = torch.abs(cmd[:, 2])
+                    cmd_mag = cmd_lin + cmd_yaw  # (N,)
+
                     # Move to device
                     obs, rewards, dones, next_amp_obs = (
                         obs.to(self.device),
@@ -268,9 +275,26 @@ class AmpOnPolicyRunner:
                     terminal_amp_states = self.env.get_amp_obs_for_expert_trans()[reset_env_ids]
                     next_amp_obs_with_term[reset_env_ids] = terminal_amp_states
 
-                    rewards = self.alg.discriminator.predict_amp_reward(
-                        amp_obs, next_amp_obs_with_term, rewards, normalizer=self.alg.amp_normalizer
-                    )[0]
+                    # --- NEW: keep task rewards (env reward) separate ---
+                    task_rewards = rewards.view(-1)  # (N,)
+
+                    # --- AMP reward from discriminator ---
+                    amp_rewards, disc_out = self.alg.discriminator.predict_amp_reward(
+                        amp_obs, next_amp_obs_with_term, task_rewards, normalizer=self.alg.amp_normalizer
+                    )
+                    amp_rewards = amp_rewards.view(-1)  # (N,)
+
+                    # --- NEW: build per-env mask based on cmd_mag ---
+                    # choose a threshold; tune e.g. 0.05 or 0.1
+                    threshold = 0.15
+                    amp_mask = (cmd_mag > threshold).float()  # [N, 1], 1 = use AMP, 0 = bypass
+
+                    # --- NEW: per-env mix: AMP vs pure task ---
+                    rewards = amp_mask * amp_rewards + (1.0 - amp_mask) * task_rewards
+
+                    # Make sure rewards is 1D (N,) for process_env_step
+                    rewards = rewards.view(-1)
+
                     amp_obs = torch.clone(next_amp_obs)
                     self.alg.process_env_step(rewards, dones, infos, next_amp_obs_with_term)
 
