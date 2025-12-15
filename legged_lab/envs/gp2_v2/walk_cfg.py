@@ -114,7 +114,7 @@ class LiteRewardCfg:
     dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-2.0)
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.1,
+        weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -128,7 +128,7 @@ class LiteRewardCfg:
     )
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.01,
+        weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -145,7 +145,7 @@ class LiteRewardCfg:
     gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.7, params={"delta_t": 0.02})
     gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=0.7, params={"delta_t": 0.02})
     gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.4, params={"delta_t": 0.02})
-    idle_feet_vel_l2 = RewTerm(func=mdp.idle_feet_vel_l2, weight=-0.1,
+    idle_feet_vel_l2 = RewTerm(func=mdp.idle_feet_vel_l2, weight=-0.5,
     params={
         "asset_cfg": SceneEntityCfg(
             name="robot",
