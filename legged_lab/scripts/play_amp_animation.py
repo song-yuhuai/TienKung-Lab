@@ -72,6 +72,46 @@ def play_amp_animation():
     env_class = task_registry.get_task_class(env_class_name)
     env = env_class(env_cfg, args_cli.headless)
 
+    import math
+    import omni.usd
+    from pxr import UsdPhysics
+
+    stage = omni.usd.get_context().get_stage()
+
+    def is_bad_num(x):
+        return x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x)))
+
+    bad = []
+
+    for prim in stage.Traverse():
+        if not prim.HasAPI(UsdPhysics.RigidBodyAPI):
+            continue
+
+        # try both common attrs (depends on how USD was authored)
+        mass_attr = prim.GetAttribute("physxMassProperties:mass")
+        if not mass_attr or not mass_attr.HasValue():
+            mass_attr = prim.GetAttribute("physics:mass")
+
+        mass = mass_attr.Get() if mass_attr else None
+
+        inertia_attr = prim.GetAttribute("physxMassProperties:diagonalInertia")
+        inertia = inertia_attr.Get() if inertia_attr and inertia_attr.HasValue() else None
+
+        mass_bad = is_bad_num(mass) or (isinstance(mass, (int, float)) and mass < 0)
+        inertia_bad = False
+        if inertia is not None:
+            # inertia might be a Gf.Vec3f/Vec3d
+            vals = list(inertia)
+            inertia_bad = any(is_bad_num(v) or v < 0 for v in vals)
+
+        if mass_bad or inertia_bad:
+            bad.append((prim.GetPath().pathString, mass, inertia))
+
+    print("\n=== BAD MASS/INERTIA BODIES ===")
+    for p, m, I in bad:
+        print(p, "mass=", m, "diagInertia=", I)
+    print("count:", len(bad))
+
     frame_cnt = 0
     all_frames = []
     while simulation_app.is_running():

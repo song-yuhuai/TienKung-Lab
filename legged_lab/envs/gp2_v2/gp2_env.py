@@ -180,15 +180,27 @@ class Gp2Env(VecEnv):
             ],
             preserve_order=True,
         )
+        self.waist_ids, _ = self.robot.find_joints(
+            name_keys=["waist_yaw_joint", "waist_roll_joint"],
+            preserve_order=True,
+        )
         self.left_arm_ids, _ = self.robot.find_joints(
             name_keys=[
                 "left_shoulder_pitch_joint",
+                "left_shoulder_roll_joint",
+                "left_shoulder_yaw_joint",
+                "left_elbow_joint",
+                "left_elbow_yaw_joint",
             ],
             preserve_order=True,
         )
         self.right_arm_ids, _ = self.robot.find_joints(
             name_keys=[
                 "right_shoulder_pitch_joint",
+                "right_shoulder_roll_joint",
+                "right_shoulder_yaw_joint",
+                "right_elbow_joint",
+                "right_elbow_yaw_joint",
             ],
             preserve_order=True,
         )
@@ -196,6 +208,7 @@ class Gp2Env(VecEnv):
             name_keys=["left_ankle_pitch_joint", "right_ankle_pitch_joint", "left_ankle_roll_joint", "right_ankle_roll_joint"],
             preserve_order=True,
         )
+        
 
         self.obs_scales = self.cfg.normalization.obs_scales
         self.add_noise = self.cfg.noise.add_noise
@@ -246,20 +259,43 @@ class Gp2Env(VecEnv):
             None
         """
         visual_motion_frame = self.amp_loader_display.get_full_frame_at_time(0, time)
+        if not hasattr(self, "_printed_vmf_len"):
+            self._printed_vmf_len = True
+            print(f"[DEBUG] visual_motion_frame len = {visual_motion_frame.numel()}, shape={tuple(visual_motion_frame.shape)}")
+        
         device = self.device
 
         dof_pos = torch.zeros((self.num_envs, self.robot.num_joints), device=device)
         dof_vel = torch.zeros((self.num_envs, self.robot.num_joints), device=device)
 
-        dof_pos[:, self.left_leg_ids] = visual_motion_frame[6:12]
-        dof_pos[:, self.right_leg_ids] = visual_motion_frame[12:18]
-        dof_pos[:, self.left_arm_ids] = visual_motion_frame[18:19]
-        dof_pos[:, self.right_arm_ids] = visual_motion_frame[19:20]
+        # --- dynamic frame parsing for: [root(3), euler(3), dof_pos(N), lin_vel(3), ang_vel(3), dof_vel(N)] ---
+        n_ll = len(self.left_leg_ids)
+        n_rl = len(self.right_leg_ids)
+        n_w  = len(self.waist_ids)
+        n_la = len(self.left_arm_ids)
+        n_ra = len(self.right_arm_ids)
+        n_dof = n_ll + n_rl + n_w + n_la + n_ra
 
-        dof_vel[:, self.left_leg_ids] = visual_motion_frame[26:32]
-        dof_vel[:, self.right_leg_ids] = visual_motion_frame[32:38]
-        dof_vel[:, self.left_arm_ids] = visual_motion_frame[38:39]
-        dof_vel[:, self.right_arm_ids] = visual_motion_frame[39:40]
+        idx = 6  # after root_pos(3) + euler(3)
+
+        # dof_pos order in the motion file: left_leg, right_leg, waist, left_arm, right_arm
+        dof_pos[:, self.left_leg_ids]  = visual_motion_frame[idx : idx + n_ll]; idx += n_ll
+        dof_pos[:, self.right_leg_ids] = visual_motion_frame[idx : idx + n_rl]; idx += n_rl
+        dof_pos[:, self.waist_ids]     = visual_motion_frame[idx : idx + n_w ]; idx += n_w
+        dof_pos[:, self.left_arm_ids]  = visual_motion_frame[idx : idx + n_la]; idx += n_la
+        dof_pos[:, self.right_arm_ids] = visual_motion_frame[idx : idx + n_ra]; idx += n_ra
+
+        lin_vel = visual_motion_frame[6 + n_dof : 6 + n_dof + 3].clone()
+        # If your file has ang_vel, read it; otherwise keep zeros like you already do.
+        ang_vel = torch.zeros_like(lin_vel)
+
+        # dof_vel starts after lin_vel(3)+ang_vel(3)
+        idx = 6 + n_dof + 3 + 3
+        dof_vel[:, self.left_leg_ids]  = visual_motion_frame[idx : idx + n_ll]; idx += n_ll
+        dof_vel[:, self.right_leg_ids] = visual_motion_frame[idx : idx + n_rl]; idx += n_rl
+        dof_vel[:, self.waist_ids]     = visual_motion_frame[idx : idx + n_w ]; idx += n_w
+        dof_vel[:, self.left_arm_ids]  = visual_motion_frame[idx : idx + n_la]; idx += n_la
+        dof_vel[:, self.right_arm_ids] = visual_motion_frame[idx : idx + n_ra]; idx += n_ra
 
         self.robot.write_joint_position_to_sim(dof_pos)
         self.robot.write_joint_velocity_to_sim(dof_vel)
@@ -275,8 +311,6 @@ class Gp2Env(VecEnv):
             [quat_xyzw[3], quat_xyzw[0], quat_xyzw[1], quat_xyzw[2]], dtype=torch.float32, device=device
         )
 
-        lin_vel = visual_motion_frame[20:23].clone()
-        ang_vel = torch.zeros_like(lin_vel)
 
         # root state: [x, y, z, qw, qx, qy, qz, vx, vy, vz, wx, wy, wz]
         root_state = torch.zeros((self.num_envs, 13), device=device)
@@ -319,16 +353,21 @@ class Gp2Env(VecEnv):
         self.right_arm_dof_pos = dof_pos[:, self.right_arm_ids]
         self.left_arm_dof_vel =  dof_vel[:, self.left_arm_ids] 
         self.right_arm_dof_vel = dof_vel[:, self.right_arm_ids]
+        self.waist_dof_pos = dof_pos[:, self.waist_ids]
+        self.waist_dof_vel = dof_vel[:, self.waist_ids]
+
         return torch.cat(
             (
                 self.right_arm_dof_pos,
                 self.left_arm_dof_pos,
                 self.right_leg_dof_pos,
                 self.left_leg_dof_pos,
+                self.waist_dof_pos,
                 self.right_arm_dof_vel,
                 self.left_arm_dof_vel,
                 self.right_leg_dof_vel,
                 self.left_leg_dof_vel,
+                self.waist_dof_vel,
                 left_hand_pos,
                 right_hand_pos,
                 left_foot_pos,
@@ -392,9 +431,9 @@ class Gp2Env(VecEnv):
                 ang_vel * self.obs_scales.ang_vel,  # 3
                 projected_gravity * self.obs_scales.projected_gravity,  # 3
                 command * self.obs_scales.commands,  # 3
-                joint_pos * self.obs_scales.joint_pos,  # 14
-                joint_vel * self.obs_scales.joint_vel,  # 14
-                action * self.obs_scales.actions,  # 14
+                joint_pos * self.obs_scales.joint_pos,  # 24
+                joint_vel * self.obs_scales.joint_vel,  # 24
+                action * self.obs_scales.actions,  # 24
                 torch.sin(2 * torch.pi * self.gait_phase),  # 2
                 torch.cos(2 * torch.pi * self.gait_phase),  # 2
                 self.phase_ratio,  # 2
@@ -623,16 +662,20 @@ class Gp2Env(VecEnv):
         self.right_arm_dof_pos = self.robot.data.joint_pos[:, self.right_arm_ids]
         self.left_arm_dof_vel = self.robot.data.joint_vel[:, self.left_arm_ids]
         self.right_arm_dof_vel = self.robot.data.joint_vel[:, self.right_arm_ids]
+        self.waist_dof_pos = self.robot.data.joint_pos[:, self.waist_ids]
+        self.waist_dof_vel = self.robot.data.joint_vel[:, self.waist_ids]
         return torch.cat(
             (
                 self.right_arm_dof_pos,
                 self.left_arm_dof_pos,
                 self.right_leg_dof_pos,
                 self.left_leg_dof_pos,
+                self.waist_dof_pos, 
                 self.right_arm_dof_vel,
                 self.left_arm_dof_vel,
                 self.right_leg_dof_vel,
                 self.left_leg_dof_vel,
+                self.waist_dof_vel,
                 left_hand_pos,
                 right_hand_pos,
                 left_foot_pos,

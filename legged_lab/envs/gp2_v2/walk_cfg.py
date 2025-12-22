@@ -74,13 +74,13 @@ class LiteRewardCfg:
         weight=-1.0,
         params={
             "sensor_cfg": SceneEntityCfg(
-                "contact_sensor", body_names=["(left|right)_knee_link", "base_link"]
+                "contact_sensor", body_names=["(left|right)_knee_link", "pelvis"]
             ),
             "threshold": 1.0,
         },
     )
     body_orientation_l2 = RewTerm(
-        func=mdp.body_orientation_l2, params={"asset_cfg": SceneEntityCfg("robot", body_names="base_link")}, weight=-2.0
+        func=mdp.body_orientation_l2, params={"asset_cfg": SceneEntityCfg("robot", body_names="pelvis")}, weight=-2.0
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0)
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
@@ -177,7 +177,7 @@ class Gp2WalkFlatEnvCfg:
         max_init_terrain_level=5,
         height_scanner=HeightScannerCfg(
             enable_height_scan=False,
-            prim_body_name="base_link",
+            prim_body_name="pelvis",
             resolution=0.1,
             size=(1.6, 1.0),
             debug_vis=False,
@@ -188,7 +188,7 @@ class Gp2WalkFlatEnvCfg:
         actor_obs_history_length=10,
         critic_obs_history_length=10,
         action_scale=0.25,
-        terminate_contacts_body_names=["(left|right)_knee_link", "base_link"],
+        terminate_contacts_body_names=["(left|right)_knee_link", "pelvis"],
         feet_body_names=["(left|right)_ankle_roll_link"],
     )
     reward = LiteRewardCfg()
@@ -247,9 +247,9 @@ class Gp2WalkFlatEnvCfg:
                 func=mdp.randomize_rigid_body_mass,
                 mode="startup",
                 params={
-                    "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
-                    "mass_distribution_params": (-5.0, 5.0),
-                    "operation": "add",
+                    "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+                    "mass_distribution_params": (0.8, 1.2),
+                    "operation": "scale",
                 },
             ),
             reset_base=EventTerm(
@@ -338,4 +338,4 @@ class Gp2WalkAgentCfg(RslRlOnPolicyRunnerCfg):
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]
-    min_normalized_std = [0.05] * 14
+    min_normalized_std = [0.05] * 24
