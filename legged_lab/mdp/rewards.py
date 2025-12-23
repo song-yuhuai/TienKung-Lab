@@ -208,6 +208,15 @@ def hip_yaw_action(env: TienKungEnv) -> torch.Tensor:
     """Penalize hip yaw joint actions."""
     return torch.sum(torch.abs(env.action[:, [env.left_leg_ids[2], env.right_leg_ids[2]]]), dim=1)
 
+def shoulder_roll_action(env: TienKungEnv) -> torch.Tensor:
+    """Penalize shoulder roll joint actions."""
+    return torch.sum(torch.abs(env.action[:, [env.left_arm_ids[1], env.right_arm_ids[1]]]), dim=1)
+
+def shoulder_yaw_action(env: TienKungEnv) -> torch.Tensor:
+    """Penalize shoulder yaw joint actions."""
+    return torch.sum(torch.abs(env.action[:, [env.left_arm_ids[2], env.right_arm_ids[2]]]), dim=1)
+
+
 
 def feet_y_distance(env: TienKungEnv) -> torch.Tensor:
     """Penalize foot y-distance when the commanded y-velocity is low, to maintain a reasonable spacing."""

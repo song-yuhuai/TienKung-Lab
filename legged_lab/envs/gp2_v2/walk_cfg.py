@@ -158,12 +158,14 @@ class LiteRewardCfg:
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0008)
     hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.1)
     hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.1)
+    shoulder_roll_action = RewTerm(func=mdp.shoulder_roll_action, weight=-0.1)
+    shoulder_yaw_action  = RewTerm(func=mdp.shoulder_yaw_action,  weight=-0.1)
     feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-1.0)
 
 
 @configclass
 class Gp2WalkFlatEnvCfg:
-    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/gp_walk51.txt"]
+    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/gp_walk4701.txt"]
     device: str = "cuda:0"
     scene: BaseSceneCfg = BaseSceneCfg(
         max_episode_length_s=20.0,
@@ -247,7 +249,7 @@ class Gp2WalkFlatEnvCfg:
                 func=mdp.randomize_rigid_body_mass,
                 mode="startup",
                 params={
-                    "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+                    "asset_cfg": SceneEntityCfg("robot", body_names="pelvis"),
                     "mass_distribution_params": (0.8, 1.2),
                     "operation": "scale",
                 },
@@ -334,8 +336,8 @@ class Gp2WalkAgentCfg(RslRlOnPolicyRunnerCfg):
 
     # amp parameter
     amp_reward_coef = 0.3
-    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/gp_walk51_expert.txt"]
+    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/gp_walk4701_expert.txt"]
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]
-    min_normalized_std = [0.05] * 24
+    min_normalized_std = [0.05] * 21

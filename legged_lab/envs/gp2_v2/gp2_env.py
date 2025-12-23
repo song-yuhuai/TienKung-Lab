@@ -181,7 +181,7 @@ class Gp2Env(VecEnv):
             preserve_order=True,
         )
         self.waist_ids, _ = self.robot.find_joints(
-            name_keys=["waist_yaw_joint", "waist_roll_joint"],
+            name_keys=["waist_yaw_joint"],
             preserve_order=True,
         )
         self.left_arm_ids, _ = self.robot.find_joints(
@@ -190,7 +190,6 @@ class Gp2Env(VecEnv):
                 "left_shoulder_roll_joint",
                 "left_shoulder_yaw_joint",
                 "left_elbow_joint",
-                "left_elbow_yaw_joint",
             ],
             preserve_order=True,
         )
@@ -200,7 +199,6 @@ class Gp2Env(VecEnv):
                 "right_shoulder_roll_joint",
                 "right_shoulder_yaw_joint",
                 "right_elbow_joint",
-                "right_elbow_yaw_joint",
             ],
             preserve_order=True,
         )
@@ -431,9 +429,9 @@ class Gp2Env(VecEnv):
                 ang_vel * self.obs_scales.ang_vel,  # 3
                 projected_gravity * self.obs_scales.projected_gravity,  # 3
                 command * self.obs_scales.commands,  # 3
-                joint_pos * self.obs_scales.joint_pos,  # 24
-                joint_vel * self.obs_scales.joint_vel,  # 24
-                action * self.obs_scales.actions,  # 24
+                joint_pos * self.obs_scales.joint_pos,  # 21
+                joint_vel * self.obs_scales.joint_vel,  # 21
+                action * self.obs_scales.actions,  # 21
                 torch.sin(2 * torch.pi * self.gait_phase),  # 2
                 torch.cos(2 * torch.pi * self.gait_phase),  # 2
                 self.phase_ratio,  # 2
