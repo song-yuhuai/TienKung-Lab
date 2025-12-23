@@ -158,8 +158,8 @@ class LiteRewardCfg:
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0008)
     hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.1)
     hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.1)
-    shoulder_roll_action = RewTerm(func=mdp.shoulder_roll_action, weight=-0.1)
-    shoulder_yaw_action  = RewTerm(func=mdp.shoulder_yaw_action,  weight=-0.1)
+    shoulder_roll_action = RewTerm(func=mdp.shoulder_roll_action, weight=-0.05)
+    shoulder_yaw_action  = RewTerm(func=mdp.shoulder_yaw_action,  weight=-0.05)
     feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-1.0)
 
 
