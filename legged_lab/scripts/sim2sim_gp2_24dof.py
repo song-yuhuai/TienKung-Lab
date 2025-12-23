@@ -36,8 +36,8 @@ class SimToSimCfg:
 
     class sim:
         sim_duration = 100.0
-        num_action = 14
-        num_obs_per_step = 57   # 14*3+15
+        num_action = 24
+        num_obs_per_step = 87   # 24*3+15
         actor_obs_history_length = 10
         dt = 0.005
         decimation = 4
@@ -94,11 +94,12 @@ class MujocoRunner:
         self.dof_pos = np.zeros(self.cfg.sim.num_action)
         self.dof_vel = np.zeros(self.cfg.sim.num_action)
         self.action = np.zeros(self.cfg.sim.num_action)
-        # self.default_dof_pos = np.array(
-        #     [-0.43, 0.0, 0, 0.94, -0.51, 0, -0.43, 0.0, 0, 0.94, -0.51, 0, 0.05, 0.05]
-        # )
         self.default_dof_pos = np.array(
-            [-0.18, 0.0, 0, 0.45, -0.25, 0, -0.18, 0.0, 0, 0.45, -0.25, 0, 0.0, 0.0]
+            [-0.18, 0.0, 0.0, 0.45, -0.25, 0.0, #left leg
+             -0.18, 0.0, 0.0, 0.45, -0.25, 0.0, #right leg
+             0.0, 0.0, #waist
+             0.0, 0.0, 0.0, 1.57, 0.0, #left arm
+             0.0, 0.0, 0.0, 1.57, 0.0] #right arm
         )
         self.episode_length_buf = 0
         self.gait_phase = np.zeros(2)
@@ -108,35 +109,56 @@ class MujocoRunner:
 
         self.mujoco_to_isaac_idx = [
             0,  # left_hip_pitch 0
-            12,  # left_shoulder_pitch 1
-            6,  # right_hip_pitch 2
-            13,  # right_shoulder_pitch 3
-            1,  # left_hip_roll 4
-            7,  # right_hip_roll 5
+            6,  # right_hip_pitch 1
+            12,  # waist_yaw 2
+            1,  # left_hip_roll 3
+            7,  # right_hip_roll 4
+            13,  # waist_roll 5
             2,  # left_hip_yaw 6
             8,  # right_hip_yaw 7
-            3,  # left_knee 8
-            9,  # right_knee 9
-            4,  # left_ankle_pitch 10
-            10,  # right_ankle_pitch 11
-            5,  # left_ankle_roll 12
-            11,  # right_ankle_roll 13
+            14,  # left_shoulder_pitch 8
+            19,  # right_shoulder_pitch 9
+            3,  # left_knee 10
+            9,  # right_knee 11
+            15,  # left_shoulder_roll 12
+            20,  # right_shoulder_roll 13
+            4,  #left_ankle_pitch 14
+            10,  #right_ankle_pitch 15
+            16,  #left_shoulder_yaw 16
+            21,  #right_shoulder_yaw 17
+            5,  #left_ankle_roll 18
+            11,  #right_ankle_roll 19
+            17,  #left_elbow 20
+            22,  #right_elbow 21
+            18,  #left_elbow_yaw 22
+            23,  #right_elbow_yaw 23
+
         ]
         self.isaac_to_mujoco_idx = [
             0,  # left_hip_pitch 0
-            4,  # left_hip_roll 1
+            3,  # left_hip_roll 1
             6,  # left_hip_yaw 2
-            8,  # left_knee 3
-            10,  # left_ankle_pitch 4
-            12,  # left_ankle_roll 5
-            2,  # right_hip_pitch 6
-            5,  # right_hip_roll 7
+            10,  # left_knee 3
+            14,  # left_ankle_pitch 4
+            18,  # left_ankle_roll 5
+            1,  # right_hip_pitch 6
+            4,  # right_hip_roll 7
             7,  # right_hip_yaw 8
-            9,  # right_knee 9
-            11,  # right_ankle_pitch 10
-            13,  # right_ankle_roll 11
-            1,  # left_shoulder_pitch 12
-            3,  # right_shoulder_pitch 13
+            11,  # right_knee 9
+            15,  # right_ankle_pitch 10
+            19,  # right_ankle_roll 11
+            2,  # waist_yaw 12
+            5,  # waist_roll 13
+            8,  # left_shoulder_pitch 14
+            12,  # left_shoulder_roll 15
+            16,  # left_shoulder_yaw 16
+            20,  # left_elbow 17
+            22,  # left_elbow_yaw 18
+            9,  # right_shoulder_pitch 19
+            13,  # right_shoulder_roll 20
+            17,  # right_shoulder_yaw 21
+            21,  # right_elbow 22
+            23,  # right_elbow_yaw 23
         ]
         # Initial command vel
         self.command_vel = np.array([0.0, 0.0, 0.0])
@@ -145,7 +167,7 @@ class MujocoRunner:
         )
 
         # --- NEW: high-level mode ('stand' or 'walk') ---
-        self.mode = "stand"   # default start in stand mode
+        self.mode = "walk"   # default start in stand mode
 
         # --- NEW: locomotion state machine params ---
         # thresholds on command magnitude
@@ -165,8 +187,8 @@ class MujocoRunner:
         Returns:
             np.ndarray: Normalized and clipped observation history.
         """
-        self.dof_pos = self.data.sensordata[16:30]  #first 16 elements are imu data, data starting from sensordata[16] are actual joint data
-        self.dof_vel = self.data.sensordata[30:44]
+        self.dof_pos = self.data.sensordata[16:40]  #first 16 elements are imu data, data starting from sensordata[16] are actual joint data
+        self.dof_vel = self.data.sensordata[40:64]
 
         obs = np.concatenate(
             [
@@ -175,9 +197,9 @@ class MujocoRunner:
                     self.data.sensor("body-orientation").data[[1, 2, 3, 0]].astype(np.double), np.array([0, 0, -1])
                 ),  # 3
                 self.command_vel,  # 3
-                (self.dof_pos - self.default_dof_pos)[self.mujoco_to_isaac_idx],  # 14
-                self.dof_vel[self.mujoco_to_isaac_idx],  # 14
-                np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions),  # 14
+                (self.dof_pos - self.default_dof_pos)[self.mujoco_to_isaac_idx],  # 24
+                self.dof_vel[self.mujoco_to_isaac_idx],  # 24
+                np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions),  # 24
                 np.sin(2 * np.pi * self.gait_phase),  # 2
                 np.cos(2 * np.pi * self.gait_phase),  # 2
                 self.phase_ratio,  # 2
@@ -218,11 +240,14 @@ class MujocoRunner:
 
         while self.data.time < self.cfg.sim.sim_duration:
             self.obs_history = self.get_obs()
-            self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:14]
+            self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:24]
             self.action = np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions)
 
+            mute = [16, 17, 22, 23]  # Isaac order
+            self.action[mute] = 0.0
+
             # --- NEW: automatic stand/walk switching based on joystick command ---
-            self.update_locomotion_mode(self.dt)
+            #self.update_locomotion_mode(self.dt)
 
             for sim_update in range(self.cfg.sim.decimation):
                 step_start_time = time.time()
@@ -379,9 +404,9 @@ class MujocoRunner:
                 elif key.char == "6":  # NumPad 6      y += 0.2
                     self.adjust_command_vel(1, 0.2)
                 elif key.char == "7":  # NumPad 7      yaw += 0.2
-                    self.adjust_command_vel(2, -0.2)
-                elif key.char == "9":  # NumPad 9      yaw -= 0.2
                     self.adjust_command_vel(2, 0.2)
+                elif key.char == "9":  # NumPad 9      yaw -= 0.2
+                    self.adjust_command_vel(2, -0.2)
                 # --- NEW: mode switching ---
                 elif key.char in ("s", "S"):
                     print("[INFO] Switch mode -> STAND")
@@ -504,7 +529,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/robot/xyber_gp2/xyber_gp2_serial.xml"),
+        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/gp2.xml"),
         help="Path to model.xml",
     )
     parser.add_argument("--duration", type=float, default=100.0, help="Simulation duration in seconds")
