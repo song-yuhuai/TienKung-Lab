@@ -95,7 +95,7 @@ class MujocoRunner:
         self.dof_vel = np.zeros(self.cfg.sim.num_action)
         self.action = np.zeros(self.cfg.sim.num_action)
         self.default_dof_pos = np.array(
-            [-0.43, 0.0, 0, 0.94, -0.51, 0, -0.43, 0.0, 0, 0.94, -0.51, 0, 0.05, 0.05]
+            [-0.18, 0.0, 0, 0.45, -0.25, 0, -0.18, 0.0, 0, 0.45, -0.25, 0, 0.0, 0.0]
         )
         self.episode_length_buf = 0
         self.gait_phase = np.zeros(2)
