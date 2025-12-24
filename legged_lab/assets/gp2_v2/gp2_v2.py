@@ -114,7 +114,7 @@ GP2_V2_CFG = ArticulationCfg(
                 "(left|right)_ankle_roll_joint": 37,
             },
             stiffness={
-                "(left|right)_ankle_pitch_joint": 150,
+                "(left|right)_ankle_pitch_joint": 50,
                 "(left|right)_ankle_roll_joint": 40,
             },
             damping={

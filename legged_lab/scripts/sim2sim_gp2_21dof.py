@@ -36,8 +36,8 @@ class SimToSimCfg:
 
     class sim:
         sim_duration = 100.0
-        num_action = 24
-        num_obs_per_step = 87   # 24*3+15
+        num_action = 21
+        num_obs_per_step = 78   # 21*3+15
         actor_obs_history_length = 10
         dt = 0.005
         decimation = 4
@@ -76,6 +76,24 @@ class MujocoRunner:
         self.policy = torch.jit.load(network_path)
         self.data = mujoco.MjData(self.model)
 
+        self.mode = "stand"
+        # define default_dof_pos etc. first
+        self.init_variables()
+
+        self.build_pd_profiles()
+        self.cache_default_actuator_gains()
+        self.set_mode(self.mode)
+        self.apply_pd_profile("stand" if self.mode == "stand" else "walk")
+
+        n = self.cfg.sim.num_action  # 21
+        mujoco.mj_resetData(self.model, self.data)
+
+        # free joint takes first 7 qpos entries
+        self.data.qpos[7:7+n] = self.default_dof_pos.copy()
+        self.data.qvel[:] = 0.0
+
+        mujoco.mj_forward(self.model, self.data)
+
         self.viewer = mujoco_viewer.MujocoViewer(self.model, self.data)
         self.viewer._render_every_frame = False
         self.init_variables()
@@ -95,11 +113,11 @@ class MujocoRunner:
         self.dof_vel = np.zeros(self.cfg.sim.num_action)
         self.action = np.zeros(self.cfg.sim.num_action)
         self.default_dof_pos = np.array(
-            [-0.18, 0.0, 0.0, 0.45, -0.25, 0.0, #left leg
-             -0.18, 0.0, 0.0, 0.45, -0.25, 0.0, #right leg
-             0.0, 0.0, #waist
-             0.0, 0.0, 0.0, 1.57, 0.0, #left arm
-             0.0, 0.0, 0.0, 1.57, 0.0] #right arm
+            [-0.2, 0.0, 0.0, 0.3, -0.17, 0.0, #left leg
+             -0.2, 0.0, 0.0, 0.3, -0.17, 0.0, #right leg
+             0.0, #waist
+             0.2, 0.25, 0.0, 0.97, #left arm
+             0.2, -0.25, 0.0, 0.97] #right arm
         )
         self.episode_length_buf = 0
         self.gait_phase = np.zeros(2)
@@ -113,61 +131,52 @@ class MujocoRunner:
             12,  # waist_yaw 2
             1,  # left_hip_roll 3
             7,  # right_hip_roll 4
-            13,  # waist_roll 5
-            2,  # left_hip_yaw 6
-            8,  # right_hip_yaw 7
-            14,  # left_shoulder_pitch 8
-            19,  # right_shoulder_pitch 9
-            3,  # left_knee 10
-            9,  # right_knee 11
-            15,  # left_shoulder_roll 12
-            20,  # right_shoulder_roll 13
-            4,  #left_ankle_pitch 14
-            10,  #right_ankle_pitch 15
-            16,  #left_shoulder_yaw 16
-            21,  #right_shoulder_yaw 17
-            5,  #left_ankle_roll 18
-            11,  #right_ankle_roll 19
-            17,  #left_elbow 20
-            22,  #right_elbow 21
-            18,  #left_elbow_yaw 22
-            23,  #right_elbow_yaw 23
+            13,  # left_shoulder_pitch 5
+            17,  # right_shoulder_pitch 6
+            2,  # left_hip_yaw 7
+            8,  # right_hip_yaw 8
+            14,  # left_shoulder_roll 9
+            18,  # right_shoulder_roll 10
+            3,  # left_knee 11
+            9,  # right_knee 12
+            15,  # left_shoulder_yaw 13
+            19,  # right_shoulder_yaw 14
+            4,  # left_ankle_pitch 15
+            10,  # right_ankle_pitch 16
+            16,  # left_elbow 17
+            20,  # right_elbow 18
+            5,  # left_ankle_roll 19
+            11,  # right_ankle_roll 20
 
         ]
         self.isaac_to_mujoco_idx = [
             0,  # left_hip_pitch 0
             3,  # left_hip_roll 1
-            6,  # left_hip_yaw 2
-            10,  # left_knee 3
-            14,  # left_ankle_pitch 4
-            18,  # left_ankle_roll 5
+            7,  # left_hip_yaw 2
+            11,  # left_knee 3
+            15,  # left_ankle_pitch 4
+            19,  # left_ankle_roll 5
             1,  # right_hip_pitch 6
             4,  # right_hip_roll 7
-            7,  # right_hip_yaw 8
-            11,  # right_knee 9
-            15,  # right_ankle_pitch 10
-            19,  # right_ankle_roll 11
+            8,  # right_hip_yaw 8
+            12,  # right_knee 9
+            16,  # right_ankle_pitch 10
+            20,  # right_ankle_roll 11
             2,  # waist_yaw 12
-            5,  # waist_roll 13
-            8,  # left_shoulder_pitch 14
-            12,  # left_shoulder_roll 15
-            16,  # left_shoulder_yaw 16
-            20,  # left_elbow 17
-            22,  # left_elbow_yaw 18
-            9,  # right_shoulder_pitch 19
-            13,  # right_shoulder_roll 20
-            17,  # right_shoulder_yaw 21
-            21,  # right_elbow 22
-            23,  # right_elbow_yaw 23
+            5,  # left_shoulder_pitch 13
+            9,  # left_shoulder_roll 14
+            13,  # left_shoulder_yaw 15
+            17,  # left_elbow 16
+            6,  # right_shoulder_pitch 17
+            10,  # right_shoulder_roll 18
+            14,  # right_shoulder_yaw 19
+            18,  # right_elbow 20
         ]
         # Initial command vel
         self.command_vel = np.array([0.0, 0.0, 0.0])
         self.obs_history = np.zeros(
             (self.cfg.sim.num_obs_per_step * self.cfg.sim.actor_obs_history_length,), dtype=np.float32
         )
-
-        # --- NEW: high-level mode ('stand' or 'walk') ---
-        self.mode = "walk"   # default start in stand mode
 
         # --- NEW: locomotion state machine params ---
         # thresholds on command magnitude
@@ -180,6 +189,198 @@ class MujocoRunner:
         self.loco_cmd_active_time  = 0.0
         self.loco_cmd_neutral_time = 0.0
 
+    def build_pd_profiles(self):
+        # From your 2real pd_stand (screenshot): arms 150/1, waist_yaw 150/1,
+        # legs: hip_pitch 400/2, hip_roll 400/2, hip_yaw 200/1.5, knee 500/3, ankle_pitch 150/1
+        # Extra: ankle_roll is not in 2real list -> pick something reasonable (150/1).
+        self.pd_stand_kp = {
+            # arms
+            "left_shoulder_pitch_joint": 150.0,
+            "left_shoulder_roll_joint":  150.0,
+            "left_shoulder_yaw_joint":   150.0,
+            "left_elbow_joint":          150.0,
+            "right_shoulder_pitch_joint": 150.0,
+            "right_shoulder_roll_joint":  150.0,
+            "right_shoulder_yaw_joint":   150.0,
+            "right_elbow_joint":          150.0,
+
+            # waist (you currently have waist_yaw in 21dof)
+            "waist_yaw_joint": 150.0,
+
+            # left leg
+            "left_hip_pitch_joint": 400.0,
+            "left_hip_roll_joint":  400.0,
+            "left_hip_yaw_joint":   200.0,
+            "left_knee_joint":      500.0,
+            "left_ankle_pitch_joint": 150.0,
+            "left_ankle_roll_joint":  150.0,  # not in 2real list -> added
+
+            # right leg
+            "right_hip_pitch_joint": 400.0,
+            "right_hip_roll_joint":  400.0,
+            "right_hip_yaw_joint":   200.0,
+            "right_knee_joint":      500.0,
+            "right_ankle_pitch_joint": 150.0,
+            "right_ankle_roll_joint":  150.0, # not in 2real list -> added
+        }
+
+        self.pd_stand_kd = {
+            # arms
+            "left_shoulder_pitch_joint": 1.0,
+            "left_shoulder_roll_joint":  1.0,
+            "left_shoulder_yaw_joint":   1.0,
+            "left_elbow_joint":          1.0,
+            "right_shoulder_pitch_joint": 1.0,
+            "right_shoulder_roll_joint":  1.0,
+            "right_shoulder_yaw_joint":   1.0,
+            "right_elbow_joint":          1.0,
+
+            # waist
+            "waist_yaw_joint": 1.0,
+
+            # left leg
+            "left_hip_pitch_joint": 2.0,
+            "left_hip_roll_joint":  2.0,
+            "left_hip_yaw_joint":   1.5,
+            "left_knee_joint":      3.0,
+            "left_ankle_pitch_joint": 1.0,
+            "left_ankle_roll_joint":  1.0,
+
+            # right leg
+            "right_hip_pitch_joint": 2.0,
+            "right_hip_roll_joint":  2.0,
+            "right_hip_yaw_joint":   1.5,
+            "right_knee_joint":      3.0,
+            "right_ankle_pitch_joint": 1.0,
+            "right_ankle_roll_joint":  1.0,
+        }
+
+        self.pd_walk_kp = {
+            # legs
+            "left_hip_pitch_joint": 150.0,
+            "left_hip_roll_joint":  100.0,
+            "left_hip_yaw_joint":   100.0,
+            "left_knee_joint":      180.0,
+            "left_ankle_pitch_joint": 150.0,
+            "left_ankle_roll_joint":   40.0,
+
+            "right_hip_pitch_joint": 150.0,
+            "right_hip_roll_joint":  100.0,
+            "right_hip_yaw_joint":   100.0,
+            "right_knee_joint":      180.0,
+            "right_ankle_pitch_joint": 150.0,
+            "right_ankle_roll_joint":   40.0,
+
+            # waist
+            "waist_yaw_joint": 150.0,
+
+            # arms
+            "left_shoulder_pitch_joint": 90.0,
+            "left_shoulder_roll_joint":  20.0,
+            "left_shoulder_yaw_joint":   20.0,
+            "left_elbow_joint":          30.0,
+
+            "right_shoulder_pitch_joint": 90.0,
+            "right_shoulder_roll_joint":  20.0,
+            "right_shoulder_yaw_joint":   20.0,
+            "right_elbow_joint":          30.0,
+        }
+
+        self.pd_walk_kd = {
+            # arms
+            "left_shoulder_pitch_joint": 4.0,
+            "left_shoulder_roll_joint":  4.0,
+            "left_shoulder_yaw_joint":   4.0,
+            "left_elbow_joint":          4.0,
+            "right_shoulder_pitch_joint": 4.0,
+            "right_shoulder_roll_joint":  4.0,
+            "right_shoulder_yaw_joint":   4.0,
+            "right_elbow_joint":          4.0,
+
+            # waist
+            "waist_yaw_joint": 1.0,
+
+            # left leg
+            "left_hip_pitch_joint": 5.0,
+            "left_hip_roll_joint":  4.0,
+            "left_hip_yaw_joint":   4.0,
+            "left_knee_joint":      10.0,
+            "left_ankle_pitch_joint": 8.0,
+            "left_ankle_roll_joint":  4.0,
+
+            # right leg
+            "right_hip_pitch_joint": 5.0,
+            "right_hip_roll_joint":  4.0,
+            "right_hip_yaw_joint":   4.0,
+            "right_knee_joint":      10.0,
+            "right_ankle_pitch_joint": 8.0,
+            "right_ankle_roll_joint":  4.0,
+        }
+
+    def cache_default_actuator_gains(self):
+        # so "walk" can restore the XML defaults
+        self._gainprm_default = self.model.actuator_gainprm.copy()
+        self._biasprm_default = self.model.actuator_biasprm.copy()
+
+    def _set_position_actuator_kp_kd(self, act_id: int, kp: float, kd: float):
+        # For MuJoCo position actuators: gainprm[0]=kp, biasprm[1]=-kp, biasprm[2]=-kd
+        self.model.actuator_gainprm[act_id, 0] = kp
+        self.model.actuator_biasprm[act_id, 1] = -kp
+        self.model.actuator_biasprm[act_id, 2] = -kd
+
+    def apply_pd_profile(self, profile: str):
+        if profile == "walk":
+            # restore XML defaults
+            self.model.actuator_gainprm[:] = self._gainprm_default
+            self.model.actuator_biasprm[:] = self._biasprm_default
+
+            for act_id in range(self.model.nu):
+                j_id = int(self.model.actuator_trnid[act_id, 0])
+                j_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, j_id)
+                if j_name is None:
+                    continue
+                if j_name in self.pd_walk_kp:
+                    kp = float(self.pd_walk_kp[j_name])
+
+                    # "get damping later":
+                    # Option A (recommended for stability): keep kd from XML
+                    # kd = float(-self._biasprm_default[act_id, 2])
+
+                    # Option B (pure stiffness-only test): 
+                    kd = float(self.pd_walk_kd[j_name])
+
+                    self._set_position_actuator_kp_kd(act_id, kp, kd)
+            return
+
+        if profile != "stand":
+            return
+
+        # stand profile: set kp/kd by the JOINT each actuator drives
+        for act_id in range(self.model.nu):
+            # actuator_trnid[act_id, 0] is joint id for joint actuators
+            j_id = int(self.model.actuator_trnid[act_id, 0])
+            j_name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, j_id)
+            if j_name is None:
+                continue
+
+            if j_name in self.pd_stand_kp:
+                kp = self.pd_stand_kp[j_name]
+                kd = self.pd_stand_kd[j_name]
+                self._set_position_actuator_kp_kd(act_id, kp, kd)
+
+    def set_mode(self, new_mode: str):
+        cur_mode = getattr(self, "mode", None)
+        if new_mode == cur_mode:
+            return
+            
+        if new_mode == self.mode:
+            return
+        self.mode = new_mode
+        if self.mode == "stand":
+            self.apply_pd_profile("stand")
+        else:
+            self.apply_pd_profile("walk")
+
     def get_obs(self) -> np.ndarray:
         """
         Compute current observation vector from MuJoCo sensors and internal state.
@@ -187,8 +388,8 @@ class MujocoRunner:
         Returns:
             np.ndarray: Normalized and clipped observation history.
         """
-        self.dof_pos = self.data.sensordata[16:40]  #first 16 elements are imu data, data starting from sensordata[16] are actual joint data
-        self.dof_vel = self.data.sensordata[40:64]
+        self.dof_pos = self.data.sensordata[16:37]  #first 16 elements are imu data, data starting from sensordata[16] are actual joint data
+        self.dof_vel = self.data.sensordata[37:58]
 
         obs = np.concatenate(
             [
@@ -197,9 +398,9 @@ class MujocoRunner:
                     self.data.sensor("body-orientation").data[[1, 2, 3, 0]].astype(np.double), np.array([0, 0, -1])
                 ),  # 3
                 self.command_vel,  # 3
-                (self.dof_pos - self.default_dof_pos)[self.mujoco_to_isaac_idx],  # 24
-                self.dof_vel[self.mujoco_to_isaac_idx],  # 24
-                np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions),  # 24
+                (self.dof_pos - self.default_dof_pos)[self.mujoco_to_isaac_idx],  # 21
+                self.dof_vel[self.mujoco_to_isaac_idx],  # 21
+                np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions),  # 21
                 np.sin(2 * np.pi * self.gait_phase),  # 2
                 np.cos(2 * np.pi * self.gait_phase),  # 2
                 self.phase_ratio,  # 2
@@ -240,14 +441,14 @@ class MujocoRunner:
 
         while self.data.time < self.cfg.sim.sim_duration:
             self.obs_history = self.get_obs()
-            self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:24]
+            self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:21]
             self.action = np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions)
 
-            mute = [16, 17, 22, 23]  # Isaac order
-            self.action[mute] = 0.0
+            # mute = [16, 17, 22, 23]  # Isaac order
+            # self.action[mute] = 0.0
 
             # --- NEW: automatic stand/walk switching based on joystick command ---
-            #self.update_locomotion_mode(self.dt)
+            self.update_locomotion_mode(self.dt)
 
             for sim_update in range(self.cfg.sim.decimation):
                 step_start_time = time.time()
@@ -337,14 +538,14 @@ class MujocoRunner:
         if self.mode == "stand":
             if self.loco_cmd_active_time > self.loco_enter_time:
                 print("[LOCO] auto-switch STAND -> WALK (cmd active)")
-                self.mode = "walk"
+                self.set_mode("walk")
                 # reset timer so we don't immediately flip back
                 self.loco_cmd_active_time = 0.0
 
         elif self.mode == "walk":
             if self.loco_cmd_neutral_time > self.loco_exit_time:
                 print("[LOCO] auto-switch WALK -> STAND (cmd neutral)")
-                self.mode = "stand"
+                self.set_mode("stand")
                 self.command_vel[:] = 0.0
                 self.loco_cmd_neutral_time = 0.0
             pass
@@ -410,12 +611,12 @@ class MujocoRunner:
                 # --- NEW: mode switching ---
                 elif key.char in ("s", "S"):
                     print("[INFO] Switch mode -> STAND")
-                    self.mode = "stand"
+                    self.set_mode("stand")
                     # optional: zero command when entering stand
                     self.command_vel[:] = 0.0
                 elif key.char in ("w", "W"):
                     print("[INFO] Switch mode -> WALK")
-                    self.mode = "walk"
+                    self.set_mode("walk")
                     print("[INFO] Printing current action vector at zero-cmd state")
                     self.print_action_debug()
                 # --- NEW: print root height ---
@@ -493,9 +694,9 @@ class MujocoRunner:
 
                 try:
                     if js.get_button(0):   # A button -> walk
-                        self.mode = "walk"
+                        self.set_mode("walk")
                     if js.get_button(1):   # B button -> stand
-                        self.mode = "stand"
+                        self.set_mode("stand")
                         self.command_vel[:] = 0.0
                 except Exception:
                     pass
@@ -529,7 +730,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/gp2.xml"),
+        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/gp2_21dof.xml"),
         help="Path to model.xml",
     )
     parser.add_argument("--duration", type=float, default=100.0, help="Simulation duration in seconds")

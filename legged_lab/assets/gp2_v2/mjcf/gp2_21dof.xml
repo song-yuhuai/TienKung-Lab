@@ -64,7 +64,7 @@
       <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="base_link" />
       <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="base_link" />
       <camera name="track" pos="0 -3 1" quat="0.850651 0.525731 0 0" mode="track" />
-      <site name = "imu" size = "0.01" pos = "0 0 -0.0057" />
+      <site name = "imu" size = "0.01" pos = "0 0 -0.057" />
       
       <body name="left_hip_pitch_link" pos="0 0.079 0">
         <inertial pos="0.002 0.045 0" mass="0.422" diaginertia="0.001 0.001 0.001" />
@@ -240,19 +240,16 @@
     <position name = "right_ankle_roll" joint = "right_ankle_roll_joint" kp="40" forcerange = "-50 50" />
 
     <position name = "waist_yaw" joint = "waist_yaw_joint" kp="150" forcerange = "-88 88" />
-    <position name = "waist_roll" joint = "waist_roll_joint" kp="150" forcerange = "-88 88" />
 
     <position name = "left_shoulder_pitch" joint = "left_shoulder_pitch_joint" kp="90" forcerange = "-25 25" />
-    <position name = "left_shoulder_roll" joint = "left_shoulder_roll_joint" kp="90" forcerange = "-25 25" />
-    <position name = "left_shoulder_yaw" joint = "left_shoulder_yaw_joint" kp="90" forcerange = "-25 25" />
-    <position name = "left_elbow" joint = "left_elbow_joint" kp="90" forcerange = "-25 25" />
-    <position name = "left_elbow_yaw" joint = "left_elbow_yaw_joint" kp="0" forcerange = "-25 25" />
+    <position name = "left_shoulder_roll" joint = "left_shoulder_roll_joint" kp="20" forcerange = "-25 25" />
+    <position name = "left_shoulder_yaw" joint = "left_shoulder_yaw_joint" kp="20" forcerange = "-25 25" />
+    <position name = "left_elbow" joint = "left_elbow_joint" kp="30" forcerange = "-25 25" />
 
     <position name = "right_shoulder_pitch" joint = "right_shoulder_pitch_joint" kp="90" forcerange = "-25 25" />
-    <position name = "right_shoulder_roll" joint = "right_shoulder_roll_joint" kp="90" forcerange = "-25 25" />
-    <position name = "right_shoulder_yaw" joint = "right_shoulder_yaw_joint" kp="90" forcerange = "-25 25" />
-    <position name = "right_elbow" joint = "right_elbow_joint" kp="90" forcerange = "-25 25" />
-    <position name = "right_elbow_yaw" joint = "right_elbow_yaw_joint" kp="90" forcerange = "-25 25" />
+    <position name = "right_shoulder_roll" joint = "right_shoulder_roll_joint" kp="20" forcerange = "-25 25" />
+    <position name = "right_shoulder_yaw" joint = "right_shoulder_yaw_joint" kp="20" forcerange = "-25 25" />
+    <position name = "right_elbow" joint = "right_elbow_joint" kp="30" forcerange = "-25 25" />
   </actuator>
 
   <sensor>
@@ -279,19 +276,16 @@
     <jointpos name = "jointpos_right_ankle_roll" joint = "right_ankle_roll_joint" noise = "0" />
 
     <jointpos name = "jointpos_waist_yaw" joint = "waist_yaw_joint" noise = "0" />
-    <jointpos name = "jointpos_waist_roll" joint = "waist_roll_joint" noise = "0" />
 
     <jointpos name = "jointpos_left_shoulder_pitch" joint = "left_shoulder_pitch_joint" noise = "0" />
     <jointpos name = "jointpos_left_shoulder_roll" joint = "left_shoulder_roll_joint" noise = "0" />
     <jointpos name = "jointpos_left_shoulder_yaw" joint = "left_shoulder_yaw_joint" noise = "0" />
     <jointpos name = "jointpos_left_elbow" joint = "left_elbow_joint" noise = "0" />
-    <jointpos name = "jointpos_left_elbow_yaw" joint = "left_elbow_yaw_joint" noise = "0" />
 
     <jointpos name = "jointpos_right_shoulder_pitch" joint = "right_shoulder_pitch_joint" noise = "0" />
     <jointpos name = "jointpos_right_shoulder_roll" joint = "right_shoulder_roll_joint" noise = "0" />
     <jointpos name = "jointpos_right_shoulder_yaw" joint = "right_shoulder_yaw_joint" noise = "0" />
     <jointpos name = "jointpos_right_elbow" joint = "right_elbow_joint" noise = "0" />
-    <jointpos name = "jointpos_right_elbow_yaw" joint = "right_elbow_yaw_joint" noise = "0" />
 
     <!-- vel -->
     <jointvel name = "jointvel_left_hip_pitch" joint = "left_hip_pitch_joint" noise = "0" />
@@ -309,19 +303,16 @@
     <jointvel name = "jointvel_right_ankle_roll" joint = "right_ankle_roll_joint" noise = "0" />
 
     <jointvel name = "jointvel_waist_yaw" joint = "waist_yaw_joint" noise = "0" />
-    <jointvel name = "jointvel_waist_roll" joint = "waist_roll_joint" noise = "0" />
 
     <jointvel name = "jointvel_left_shoulder_pitch" joint = "left_shoulder_pitch_joint" noise = "0" />
     <jointvel name = "jointvel_left_shoulder_roll" joint = "left_shoulder_roll_joint" noise = "0" />
     <jointvel name = "jointvel_left_shoulder_yaw" joint = "left_shoulder_yaw_joint" noise = "0" />
     <jointvel name = "jointvel_left_elbow" joint = "left_elbow_joint" noise = "0" />
-    <jointvel name = "jointvel_left_elbow_yaw" joint = "left_elbow_yaw_joint" noise = "0" />
 
     <jointvel name = "jointvel_right_shoulder_pitch" joint = "right_shoulder_pitch_joint" noise = "0" />
     <jointvel name = "jointvel_right_shoulder_roll" joint = "right_shoulder_roll_joint" noise = "0" />
     <jointvel name = "jointvel_right_shoulder_yaw" joint = "right_shoulder_yaw_joint" noise = "0" />
     <jointvel name = "jointvel_right_elbow" joint = "right_elbow_joint" noise = "0" />
-    <jointvel name = "jointvel_right_elbow_yaw" joint = "right_elbow_yaw_joint" noise = "0" />
    
     <!-- effort -->
     <jointactuatorfrc name = "jointeffort_left_hip_pitch" joint = "left_hip_pitch_joint" noise = "0" />
@@ -339,18 +330,15 @@
     <jointactuatorfrc name = "jointeffort_right_ankle_roll" joint = "right_ankle_roll_joint" noise = "0" />
 
     <jointactuatorfrc name = "jointeffort_waist_yaw" joint = "waist_yaw_joint" noise = "0" />
-    <jointactuatorfrc name = "jointeffort_waist_roll" joint = "waist_roll_joint" noise = "0" />
 
     <jointactuatorfrc name = "jointeffort_left_shoulder_pitch" joint = "left_shoulder_pitch_joint" noise = "0" />
     <jointactuatorfrc name = "jointeffort_left_shoulder_roll" joint = "left_shoulder_roll_joint" noise = "0" />
     <jointactuatorfrc name = "jointeffort_left_shoulder_yaw" joint = "left_shoulder_yaw_joint" noise = "0" />
     <jointactuatorfrc name = "jointeffort_left_elbow" joint = "left_elbow_joint" noise = "0" />
-    <jointactuatorfrc name = "jointeffort_left_elbow_yaw" joint = "left_elbow_yaw_joint" noise = "0" />
 
     <jointactuatorfrc name = "jointeffort_right_shoulder_pitch" joint = "right_shoulder_pitch_joint" noise = "0" />
     <jointactuatorfrc name = "jointeffort_right_shoulder_roll" joint = "right_shoulder_roll_joint" noise = "0" />
     <jointactuatorfrc name = "jointeffort_right_shoulder_yaw" joint = "right_shoulder_yaw_joint" noise = "0" />
     <jointactuatorfrc name = "jointeffort_right_elbow" joint = "right_elbow_joint" noise = "0" />
-    <jointactuatorfrc name = "jointeffort_right_elbow_yaw" joint = "right_elbow_yaw_joint" noise = "0" />
   </sensor>
 </mujoco>
