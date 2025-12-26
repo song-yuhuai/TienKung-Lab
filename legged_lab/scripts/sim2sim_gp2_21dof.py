@@ -298,7 +298,7 @@ class MujocoRunner:
             "right_elbow_joint":          4.0,
 
             # waist
-            "waist_yaw_joint": 1.0,
+            "waist_yaw_joint": 6.0,
 
             # left leg
             "left_hip_pitch_joint": 5.0,
