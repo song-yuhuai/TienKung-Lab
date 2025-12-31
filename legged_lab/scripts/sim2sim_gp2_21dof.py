@@ -440,6 +440,8 @@ class MujocoRunner:
             self.setup_joystick()
 
         while self.data.time < self.cfg.sim.sim_duration:
+
+
             self.obs_history = self.get_obs()
             self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:21]
             self.action = np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions)
@@ -448,7 +450,7 @@ class MujocoRunner:
             # self.action[mute] = 0.0
 
             # --- NEW: automatic stand/walk switching based on joystick command ---
-            self.update_locomotion_mode(self.dt)
+            # self.update_locomotion_mode(self.dt)
 
             for sim_update in range(self.cfg.sim.decimation):
                 step_start_time = time.time()

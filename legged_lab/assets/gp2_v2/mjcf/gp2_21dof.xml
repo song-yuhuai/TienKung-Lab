@@ -153,7 +153,7 @@
       </body>
       <body name="waist_yaw_link" pos="0 0 0.116">
         <inertial pos="0.001 0 0.032" mass="0.237" diaginertia="0.001 0.001 0.001" />
-        <joint name="waist_yaw_joint" pos="0 0 0" axis="0 0 1" range="-2.79 2.79" class="torso_motor" damping="6"/>
+        <joint name="waist_yaw_joint" pos="0 0 0" axis="0 0 1" range="-0.25 0.25" class="torso_motor" damping="6"/>
         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.75294 0.75294 0.75294 1" mesh="waist_yaw_link" />
         <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="waist_yaw_link" />
         <body name="torso_link" pos="0.04 2.1468e-05 0.048">
