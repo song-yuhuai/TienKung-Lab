@@ -231,6 +231,11 @@ class Gp2Env(VecEnv):
             dtype=torch.float,
             device=self.device,
         ).repeat(self.num_envs, 1)
+
+        # --- stand-aware gait phase freeze ---
+        self.stand_state = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.gait_time = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)  # seconds accumulated only when moving
+
         self.action = torch.zeros(
             self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False
         )
@@ -511,6 +516,10 @@ class Gp2Env(VecEnv):
         self.action_buffer.reset(env_ids)
         self.episode_length_buf[env_ids] = 0
 
+        self.stand_state[env_ids] = False
+        self.gait_time[env_ids] = 0.0
+        self.gait_phase[env_ids, :] = 0.59
+
         self.scene.write_data_to_sim()
         self.sim.forward()
 
@@ -545,9 +554,11 @@ class Gp2Env(VecEnv):
             self.sim.render()
 
         self.episode_length_buf += 1
-        self._calculate_gait_para()
 
         self.command_generator.compute(self.step_dt)
+
+        self._calculate_gait_para()
+
         if "interval" in self.event_manager.available_modes:
             self.event_manager.apply(mode="interval", dt=self.step_dt)
 
@@ -693,9 +704,27 @@ class Gp2Env(VecEnv):
         return torch_utils.set_seed(seed)
 
     def _calculate_gait_para(self) -> None:
-        """
-        Update gait phase parameters based on simulation time and offset.
-        """
-        t = self.episode_length_buf * self.step_dt / self.gait_cycle
-        self.gait_phase[:, 0] = (t + self.phase_offset[:, 0]) % 1.0
-        self.gait_phase[:, 1] = (t + self.phase_offset[:, 1]) % 1.0
+        """Update gait phase; freeze to stance-safe phase when command ~ 0."""
+        cmd = self.command_generator.command  # (N, 3): vx, vy, wz
+        cmd_mag = torch.norm(cmd[:, :2], dim=1) + torch.abs(cmd[:, 2])
+
+        # hysteresis to prevent flicker
+        enter_th, exit_th = 0.08, 0.12
+        enter = cmd_mag < enter_th
+        exit = cmd_mag > exit_th
+        self.stand_state = torch.where(enter, torch.ones_like(self.stand_state), self.stand_state)
+        self.stand_state = torch.where(exit, torch.zeros_like(self.stand_state), self.stand_state)
+
+        # advance gait time only when moving
+        moving = ~self.stand_state
+        self.gait_time += moving.float() * self.step_dt
+
+        # normal phase when moving
+        t = self.gait_time / self.gait_cycle  # (N,)
+        phase = (t.unsqueeze(1) + self.phase_offset) % 1.0  # (N,2)
+
+        # standing phase override: choose stance interior (air_ratio=0.55, delta_t=0.02 -> 0.59 is safe)
+        stand_phase = torch.full_like(phase, 0.59)
+        phase = torch.where(self.stand_state.unsqueeze(1), stand_phase, phase)
+
+        self.gait_phase[:, :] = phase

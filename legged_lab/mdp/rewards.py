@@ -282,11 +282,16 @@ def gait_clock(phase, air_ratio, delta_t):
 
 def gait_feet_frc_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor:
     """Penalize foot force during the swing phase of the gait."""
-    left_frc_swing_mask = gait_clock(env.gait_phase[:, 0], env.phase_ratio[:, 0], delta_t)[0]
-    right_frc_swing_mask = gait_clock(env.gait_phase[:, 1], env.phase_ratio[:, 1], delta_t)[0]
-    left_frc_score = left_frc_swing_mask * (torch.exp(-200 * torch.square(env.avg_feet_force_per_step[:, 0])))
-    right_frc_score = right_frc_swing_mask * (torch.exp(-200 * torch.square(env.avg_feet_force_per_step[:, 1])))
-    return left_frc_score + right_frc_score
+    
+    left_mask = gait_clock(env.gait_phase[:, 0], env.phase_ratio[:, 0], delta_t)[0]
+    right_mask = gait_clock(env.gait_phase[:, 1], env.phase_ratio[:, 1], delta_t)[0]
+    raw = left_mask * torch.exp(-200 * env.avg_feet_force_per_step[:, 0] ** 2) \
+        + right_mask * torch.exp(-200 * env.avg_feet_force_per_step[:, 1] ** 2)
+
+    cmd_mag = _cmd_mag(env)
+    idle_th, walk_th = 0.1, 0.3
+    gate = ((cmd_mag - idle_th) / (walk_th - idle_th)).clamp(0.0, 1.0)
+    return gate * raw
 
 
 def gait_feet_spd_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor:
@@ -340,4 +345,32 @@ def idle_feet_vel_l2(
     cmd_mag = _cmd_mag(env)
     idle_flag = cmd_mag < 0.1
     return idle_flag * feet_speed2
+
+def stand_still_pose_exp(
+    env: BaseEnv | TienKungEnv,
+    std: float = 0.4,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Reward being near default pose when command ~ 0."""
+    asset: Articulation = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    q0 = asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+
+    err2 = torch.sum(torch.square(q - q0), dim=1)
+    idle_flag = _cmd_mag(env) < 0.1
+    return idle_flag * torch.exp(-err2 / (std ** 2))
+
+def idle_joint_vel_l2(
+    env: BaseEnv | TienKungEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    qd = asset.data.joint_vel[:, asset_cfg.joint_ids]
+    idle_flag = _cmd_mag(env) < 0.1
+    return idle_flag * torch.sum(torch.square(qd), dim=1)
+
+def idle_action_l2(env: BaseEnv | TienKungEnv) -> torch.Tensor:
+    idle_flag = _cmd_mag(env) < 0.1
+    return idle_flag * torch.sum(torch.square(env.action), dim=1)
+
 

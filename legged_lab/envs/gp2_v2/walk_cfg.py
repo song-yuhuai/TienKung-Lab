@@ -142,7 +142,7 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.7, params={"delta_t": 0.02})
+    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.4, params={"delta_t": 0.02})
     gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=0.7, params={"delta_t": 0.02})
     gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.4, params={"delta_t": 0.02})
     idle_feet_vel_l2 = RewTerm(func=mdp.idle_feet_vel_l2, weight=-0.5,
@@ -161,6 +161,21 @@ class LiteRewardCfg:
     shoulder_roll_action = RewTerm(func=mdp.shoulder_roll_action, weight=-0.05)
     shoulder_yaw_action  = RewTerm(func=mdp.shoulder_yaw_action,  weight=-0.05)
     feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-1.0)
+
+    # --- standstill (cmd_mag < 0.1 gated inside each term) ---
+    stand_still_pose_exp = RewTerm(
+        func=mdp.stand_still_pose_exp,
+        weight=2.5,
+        params={"std": 0.30},
+    )
+    idle_joint_vel_l2 = RewTerm(
+        func=mdp.idle_joint_vel_l2,
+        weight=-0.05,
+    )
+    idle_action_l2 = RewTerm(
+        func=mdp.idle_action_l2,
+        weight=-0.01,
+    )
 
 
 @configclass
