@@ -89,9 +89,9 @@ GP2_V2_CFG = ArticulationCfg(
             },
             stiffness={
                 "(left|right)_hip_roll_joint": 100,
-                "(left|right)_hip_pitch_joint": 200,
+                "(left|right)_hip_pitch_joint": 150,
                 "(left|right)_hip_yaw_joint": 100,
-                "(left|right)_knee_joint": 300,
+                "(left|right)_knee_joint": 180,
             },
             damping={
                 "(left|right)_hip_pitch_joint": 5,
@@ -166,10 +166,10 @@ GP2_V2_CFG = ArticulationCfg(
                 "waist_yaw_joint": 20,
             },
             stiffness={
-                "waist_yaw_joint": 100,
+                "waist_yaw_joint": 150,
             },
             damping={
-                "waist_yaw_joint": 4,
+                "waist_yaw_joint": 6,
             },
         ),
     },
