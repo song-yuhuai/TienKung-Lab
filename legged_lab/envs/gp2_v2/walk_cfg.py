@@ -53,8 +53,8 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 @configclass
 class GaitCfg:
-    gait_air_ratio_l: float = 0.55
-    gait_air_ratio_r: float = 0.55
+    gait_air_ratio_l: float = 0.4
+    gait_air_ratio_r: float = 0.4
     gait_phase_offset_l: float = 0.38
     gait_phase_offset_r: float = 0.88
     gait_cycle: float = 0.95
@@ -62,7 +62,7 @@ class GaitCfg:
 
 @configclass
 class LiteRewardCfg:
-    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=2.0, params={"std": 0.5})
+    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=3.0, params={"std": 0.3})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -156,8 +156,8 @@ class LiteRewardCfg:
 
     ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0004)
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0008)
-    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.1)
-    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.1)
+    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.05)
+    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.05)
     shoulder_roll_action = RewTerm(func=mdp.shoulder_roll_action, weight=-0.05)
     shoulder_yaw_action  = RewTerm(func=mdp.shoulder_yaw_action,  weight=-0.05)
     feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-1.0)

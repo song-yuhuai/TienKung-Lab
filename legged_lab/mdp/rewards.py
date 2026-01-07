@@ -201,7 +201,7 @@ def ankle_action(env: TienKungEnv) -> torch.Tensor:
 
 def hip_roll_action(env: TienKungEnv) -> torch.Tensor:
     """Penalize hip roll joint actions."""
-    return torch.sum(torch.abs(env.action[:, [env.left_leg_ids[0], env.right_leg_ids[0]]]), dim=1)
+    return torch.sum(torch.abs(env.action[:, [env.left_leg_ids[1], env.right_leg_ids[1]]]), dim=1)
 
 
 def hip_yaw_action(env: TienKungEnv) -> torch.Tensor:
@@ -224,7 +224,8 @@ def feet_y_distance(env: TienKungEnv) -> torch.Tensor:
     rightfoot = env.robot.data.body_pos_w[:, env.feet_body_ids[1], :] - env.robot.data.root_link_pos_w[:, :]
     leftfoot_b = math_utils.quat_apply(math_utils.quat_conjugate(env.robot.data.root_link_quat_w[:, :]), leftfoot)
     rightfoot_b = math_utils.quat_apply(math_utils.quat_conjugate(env.robot.data.root_link_quat_w[:, :]), rightfoot)
-    y_distance_b = torch.abs(leftfoot_b[:, 1] - rightfoot_b[:, 1] - 0.299)
+    width = torch.abs(leftfoot_b[:, 1] - rightfoot_b[:, 1])
+    y_distance_b = torch.abs(width- 0.299)
     y_vel_flag = torch.abs(env.command_generator.command[:, 1]) < 0.1
     return y_distance_b * y_vel_flag
 
@@ -286,7 +287,16 @@ def gait_feet_frc_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor
     right_frc_swing_mask = gait_clock(env.gait_phase[:, 1], env.phase_ratio[:, 1], delta_t)[0]
     left_frc_score = left_frc_swing_mask * (torch.exp(-200 * torch.square(env.avg_feet_force_per_step[:, 0])))
     right_frc_score = right_frc_swing_mask * (torch.exp(-200 * torch.square(env.avg_feet_force_per_step[:, 1])))
-    return left_frc_score + right_frc_score
+
+    # ---- command gating ----
+    cmd_mag = _cmd_mag(env)  # ~ |v| + |yaw|
+    idle_th = 0.1   # below this = stand
+    walk_th = 0.3   # above this = full gait shaping
+
+    gate = ((cmd_mag - idle_th) / (walk_th - idle_th)).clamp(0.0, 1.0)
+
+
+    return gate*(left_frc_score + right_frc_score)
 
 
 def gait_feet_spd_perio(env: TienKungEnv, delta_t: float = 0.02) -> torch.Tensor:
