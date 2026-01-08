@@ -142,7 +142,7 @@ GP2_V2_CFG = ArticulationCfg(
                 "(left|right)_elbow_joint": 37,
             },
             stiffness={
-                "(left|right)_shoulder_pitch_joint": 90,
+                "(left|right)_shoulder_pitch_joint": 30,
                 "(left|right)_shoulder_roll_joint": 20,
                 "(left|right)_shoulder_yaw_joint": 20,
                 "(left|right)_elbow_joint": 30,

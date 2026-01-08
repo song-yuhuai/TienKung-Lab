@@ -576,6 +576,7 @@ class Gp2Env(VecEnv):
             dim=1,
         )
         time_out_buf = self.episode_length_buf >= self.max_episode_length
+
         reset_buf |= time_out_buf
         return reset_buf, time_out_buf
 

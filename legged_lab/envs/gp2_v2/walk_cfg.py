@@ -190,7 +190,7 @@ class Gp2WalkFlatEnvCfg:
         actor_obs_history_length=10,
         critic_obs_history_length=10,
         action_scale=0.25,
-        terminate_contacts_body_names=["(left|right)_knee_link", "pelvis"],
+        terminate_contacts_body_names=["(left|right)_knee_link", "pelvis", "waist_yaw_link"],
         feet_body_names=["(left|right)_ankle_roll_link"],
     )
     reward = LiteRewardCfg()
