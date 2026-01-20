@@ -34,11 +34,14 @@ from legged_lab.envs.tienkung.walk_with_sensor_cfg import (
     TienKungWalkWithSensorAgentCfg,
     TienKungWalkWithSensorFlatEnvCfg,
 )
+from legged_lab.envs.x2.x2_env import X2Env
+from legged_lab.envs.x2.walk_cfg import X2WalkAgentCfg, X2WalkFlatEnvCfg
 from legged_lab.utils.task_registry import task_registry
 
 task_registry.register("gp2_walk", Gp2Env, Gp2WalkFlatEnvCfg(), Gp2WalkAgentCfg())
 task_registry.register("walk", TienKungEnv, TienKungWalkFlatEnvCfg(), TienKungWalkAgentCfg())
 task_registry.register("run", TienKungEnv, TienKungRunFlatEnvCfg(), TienKungRunAgentCfg())
+task_registry.register("x2_walk", X2Env, X2WalkFlatEnvCfg(), X2WalkAgentCfg())
 task_registry.register(
     "walk_with_sensor", TienKungEnv, TienKungWalkWithSensorFlatEnvCfg(), TienKungWalkWithSensorAgentCfg()
 )
