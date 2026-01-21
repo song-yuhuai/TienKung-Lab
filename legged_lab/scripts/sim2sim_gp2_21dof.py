@@ -47,8 +47,8 @@ class SimToSimCfg:
         realtime_factor = 1.0  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
 
     class robot:
-        gait_air_ratio_l: float = 0.55
-        gait_air_ratio_r: float = 0.55
+        gait_air_ratio_l: float = 0.4
+        gait_air_ratio_r: float = 0.4
         gait_phase_offset_l: float = 0.38
         gait_phase_offset_r: float = 0.88
         gait_cycle: float = 0.95
@@ -732,7 +732,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/gp2_21dof.xml"),
+        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/gp02-v25.xml"),
         help="Path to model.xml",
     )
     parser.add_argument("--duration", type=float, default=100.0, help="Simulation duration in seconds")
@@ -762,8 +762,8 @@ if __name__ == "__main__":
 
     # Set gait parameters according to task
     if args.task == "gp2_walk":
-        sim_cfg.robot.gait_air_ratio_l = 0.55
-        sim_cfg.robot.gait_air_ratio_r = 0.55
+        sim_cfg.robot.gait_air_ratio_l = 0.4
+        sim_cfg.robot.gait_air_ratio_r = 0.4
         sim_cfg.robot.gait_phase_offset_l = 0.38
         sim_cfg.robot.gait_phase_offset_r = 0.88
         sim_cfg.robot.gait_cycle = 0.95

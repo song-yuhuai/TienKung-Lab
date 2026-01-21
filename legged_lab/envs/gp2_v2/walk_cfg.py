@@ -53,8 +53,8 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 @configclass
 class GaitCfg:
-    gait_air_ratio_l: float = 0.4
-    gait_air_ratio_r: float = 0.4
+    gait_air_ratio_l: float = 0.55
+    gait_air_ratio_r: float = 0.55
     gait_phase_offset_l: float = 0.38
     gait_phase_offset_r: float = 0.88
     gait_cycle: float = 0.95
@@ -62,7 +62,7 @@ class GaitCfg:
 
 @configclass
 class LiteRewardCfg:
-    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=3.0, params={"std": 0.3})
+    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=5.0, params={"std": 0.3})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -154,8 +154,8 @@ class LiteRewardCfg:
     },
 )
 
-    ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0004)
-    ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0008)
+    ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0002)
+    ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.0004)
     hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.05)
     hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.05)
     shoulder_roll_action = RewTerm(func=mdp.shoulder_roll_action, weight=-0.05)
@@ -165,17 +165,17 @@ class LiteRewardCfg:
 
 @configclass
 class Gp2WalkFlatEnvCfg:
-    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/gp2_walk3503.txt"]
+    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/gp2_walk3804.txt"]
     device: str = "cuda:0"
     scene: BaseSceneCfg = BaseSceneCfg(
         max_episode_length_s=20.0,
         num_envs=4096,
         env_spacing=2.5,
         robot=GP2_V2_CFG,
-        terrain_type="generator",
-        terrain_generator=GRAVEL_TERRAINS_CFG,
-        # terrain_type="plane",
-        # terrain_generator= None,
+        # terrain_type="generator",
+        # terrain_generator=GRAVEL_TERRAINS_CFG,
+        terrain_type="plane",
+        terrain_generator= None,
         max_init_terrain_level=5,
         height_scanner=HeightScannerCfg(
             enable_height_scan=False,
@@ -336,7 +336,7 @@ class Gp2WalkAgentCfg(RslRlOnPolicyRunnerCfg):
 
     # amp parameter
     amp_reward_coef = 0.3
-    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/gp2_walk3503_expert.txt"]
+    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/gp2_walk3804_expert.txt"]
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]
