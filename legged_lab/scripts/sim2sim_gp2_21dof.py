@@ -28,6 +28,20 @@ from pynput import keyboard
 import time
 import threading
 
+def dump_contacts(model, data, max_print=8):
+        ncon = data.ncon
+        print(f"[contact] t={data.time:.4f}  ncon={ncon}")
+        if ncon == 0:
+            return
+
+        for i in range(min(ncon, max_print)):
+            c = data.contact[i]
+            g1, g2 = c.geom1, c.geom2
+            name1 = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g1) or f"geom#{g1}"
+            name2 = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g2) or f"geom#{g2}"
+            # c.dist < 0 means penetration
+            print(f"  {i}: {name1}  <->  {name2}   dist={c.dist:.6f}")
+
 class SimToSimCfg:
     """Configuration class for sim2sim parameters.
 
@@ -44,7 +58,7 @@ class SimToSimCfg:
         clip_observations = 100.0
         clip_actions = 100
         action_scale = 0.25
-        realtime_factor = 1.0  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
+        realtime_factor = 0.25  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
 
     class robot:
         gait_air_ratio_l: float = 0.4
@@ -65,6 +79,8 @@ class MujocoRunner:
         model_path (str): Path to the MuJoCo XML model.
     """
 
+    
+
     def __init__(self, cfg: SimToSimCfg, policy_path, model_path, use_joystick: bool = False):
         self.cfg = cfg
         self.use_joystick = use_joystick
@@ -75,6 +91,11 @@ class MujocoRunner:
 
         self.policy = torch.jit.load(network_path)
         self.data = mujoco.MjData(self.model)
+
+        # print("sensordata dim:", self.model.nsensordata)
+        # for s in range(self.model.nsensor):
+        #     print(s, self.model.sensor(s).name, self.model.sensor(s).dim)
+
 
         self.mode = "stand"
         # define default_dof_pos etc. first
@@ -93,6 +114,10 @@ class MujocoRunner:
         self.data.qvel[:] = 0.0
 
         mujoco.mj_forward(self.model, self.data)
+        dump_contacts(self.model, self.data)
+
+        
+
 
         self.viewer = mujoco_viewer.MujocoViewer(self.model, self.data)
         self.viewer._render_every_frame = False
@@ -103,7 +128,7 @@ class MujocoRunner:
         self.push_force = np.zeros(3)  # world-frame force [Fx, Fy, Fz]
         # pick the body you want to push, adjust name if needed
         self.push_body_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_BODY, "base_link"
+            self.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis"
         )
 
     def init_variables(self) -> None:
@@ -113,8 +138,8 @@ class MujocoRunner:
         self.dof_vel = np.zeros(self.cfg.sim.num_action)
         self.action = np.zeros(self.cfg.sim.num_action)
         self.default_dof_pos = np.array(
-            [-0.2, 0.0, 0.0, 0.3, -0.17, 0.0, #left leg
-             -0.2, 0.0, 0.0, 0.3, -0.17, 0.0, #right leg
+            [-0.27, 0.0, 0.0, 0.55, -0.28, 0.0, #left leg
+             -0.27, 0.0, 0.0, 0.55, -0.28, 0.0, #right leg
              0.0, #waist
              0.2, 0.25, 0.0, 0.97, #left arm
              0.2, -0.25, 0.0, 0.97] #right arm
@@ -188,6 +213,8 @@ class MujocoRunner:
         # timers
         self.loco_cmd_active_time  = 0.0
         self.loco_cmd_neutral_time = 0.0
+
+    
 
     def build_pd_profiles(self):
         # From your 2real pd_stand (screenshot): arms 150/1, waist_yaw 150/1,
@@ -471,8 +498,29 @@ class MujocoRunner:
                     # clear any previous external forces
                     self.data.xfrc_applied[:] = 0.0
 
-                self.data.ctrl = self.position_control()
+                # self.data.ctrl = self.position_control()
+                self.data.ctrl = self.data.qpos[7:7 + self.model.nu].copy()
                 mujoco.mj_step(self.model, self.data)
+                prev_ncon = getattr(self, "_prev_ncon", None)
+                ncon = self.data.ncon
+                if prev_ncon is None or ncon != prev_ncon:
+                    dump_contacts(self.model, self.data)
+                self._prev_ncon = ncon
+
+                if self.data.time < 2.0 and int(self.data.time / self.model.opt.timestep) % 50 == 0:
+                    print("[state] qvel[0:6]=", self.data.qvel[:6])
+                    print("[state] qacc[0:6]=", self.data.qacc[:6])
+                    print("[state] qfrc_constraint_norm=", float((self.data.qfrc_constraint**2).sum()**0.5))
+                    if float((self.data.qfrc_constraint**2).sum()**0.5) > 1e-6:
+                        # print a few joints
+                        for jname in ["left_hip_roll_joint","right_hip_roll_joint","left_knee_joint","right_knee_joint"]:
+                            jid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, jname)
+                            qadr = self.model.jnt_qposadr[jid]
+                            rng = self.model.jnt_range[jid]
+                            q = self.data.qpos[qadr]
+                            print("[limit?]", jname, "q=", q, "range=", rng)
+
+
                 self.viewer.render()
 
                 elapsed = time.time() - step_start_time
