@@ -53,11 +53,19 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 @configclass
 class GaitCfg:
-    gait_air_ratio_l: float = 0.6
-    gait_air_ratio_r: float = 0.6
+    gait_air_ratio_l: float = 0.4
+    gait_air_ratio_r: float = 0.4
     gait_phase_offset_l: float = 0.6
     gait_phase_offset_r: float = 0.1
-    gait_cycle: float = 0.5
+    
+    gait_cycle_walk: float = 0.95
+    gait_cycle_run: float = 0.5
+    gait_air_ratio_walk: float = 0.4
+    gait_air_ratio_run: float = 0.6
+    speed_transition_start: float = 0.6
+    speed_transition_end: float = 1.0
+    speed_max_for_gait: float = 1.0
+    gait_param_smoothing: float = 0.2
 
 
 @configclass
@@ -74,7 +82,7 @@ class LiteRewardCfg:
         weight=-1.0,
         params={
             "sensor_cfg": SceneEntityCfg(
-                "contact_sensor", body_names=["knee_pitch.*", "shoulder_roll.*", "elbow_pitch.*", "pelvis"]
+                "contact_sensor", body_names=["(left|right)_knee_link", "pelvis"]
             ),
             "threshold": 1.0,
         },
@@ -88,15 +96,15 @@ class LiteRewardCfg:
         func=mdp.feet_slide,
         weight=-0.25,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="ankle_roll.*"),
-            "asset_cfg": SceneEntityCfg("robot", body_names="ankle_roll.*"),
+            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="(left|right)_ankle_roll_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names="(left|right)_ankle_roll_link"),
         },
     )
     feet_force = RewTerm(
         func=mdp.body_force,
         weight=-3e-3,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="ankle_roll.*"),
+            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names="(left|right)_ankle_roll_link"),
             "threshold": 500,
             "max_reward": 400,
         },
@@ -104,12 +112,12 @@ class LiteRewardCfg:
     feet_too_near = RewTerm(
         func=mdp.feet_too_near_humanoid,
         weight=-2.0,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=["ankle_roll.*"]), "threshold": 0.2},
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=["(left|right)_ankle_roll_link"]), "threshold": 0.2},
     )
     feet_stumble = RewTerm(
         func=mdp.feet_stumble,
         weight=-2.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_sensor", body_names=["ankle_roll.*"])},
+        params={"sensor_cfg": SceneEntityCfg("contact_sensor", body_names=["(left|right)_ankle_roll_link"])},
     )
     dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-2.0)
     joint_deviation_hip = RewTerm(
@@ -119,10 +127,9 @@ class LiteRewardCfg:
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 joint_names=[
-                    "hip_yaw_.*_joint",
-                    "hip_roll_.*_joint",
-                    "shoulder_pitch_.*_joint",
-                    "elbow_pitch_.*_joint",
+                    "(left|right)_hip_yaw_joint",
+                    "(left|right)_hip_roll_joint",
+                    "(left|right)_shoulder_pitch_joint",
                 ],
             )
         },
@@ -139,10 +146,10 @@ class LiteRewardCfg:
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 joint_names=[
-                    "hip_pitch_.*_joint",
-                    "knee_pitch_.*_joint",
-                    "ankle_pitch_.*_joint",
-                    "ankle_roll_.*_joint",
+                    "(left|right)_hip_pitch_joint",
+                    "(left|right)_knee_joint",
+                    "(left|right)_ankle_pitch_joint",
+                    "(left|right)_ankle_roll_joint",
                 ],
             )
         },
@@ -186,8 +193,8 @@ class Gp2RunFlatEnvCfg:
         actor_obs_history_length=10,
         critic_obs_history_length=10,
         action_scale=0.25,
-        terminate_contacts_body_names=["knee_pitch.*", "shoulder_roll.*", "elbow_pitch.*", "pelvis"],
-        feet_body_names=["ankle_roll.*"],
+        terminate_contacts_body_names=["(left|right)_knee_link", "pelvis", "waist_yaw_link"],
+        feet_body_names=["(left|right)_ankle_roll_link"],
     )
     reward = LiteRewardCfg()
     gait = GaitCfg()
@@ -207,14 +214,14 @@ class Gp2RunFlatEnvCfg:
         height_scan_offset=0.5,
     )
     commands: CommandsCfg = CommandsCfg(
-        resampling_time_range=(10.0, 10.0),
+        resampling_time_range=(7.0, 7.0),
         rel_standing_envs=0.2,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=CommandRangesCfg(
-            lin_vel_x=(-0.6, 1.0), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.57, 1.57), heading=(-math.pi, math.pi)
+            lin_vel_x=(-0.6, 2.0), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.57, 1.57), heading=(-math.pi, math.pi)
         ),
     )
     noise: NoiseCfg = NoiseCfg(
@@ -321,11 +328,11 @@ class Gp2RunAgentCfg(RslRlOnPolicyRunnerCfg):
     clip_actions = None
     save_interval = 100
     runner_class_name = "AmpOnPolicyRunner"
-    experiment_name = "run"
+    experiment_name = "gp2_run"
     run_name = ""
     logger = "tensorboard"
-    neptune_project = "run"
-    wandb_project = "run"
+    neptune_project = "gp2_run"
+    wandb_project = "gp2_run"
     resume = False
     load_run = ".*"
     load_checkpoint = "model_.*.pt"
@@ -336,4 +343,4 @@ class Gp2RunAgentCfg(RslRlOnPolicyRunnerCfg):
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]
-    min_normalized_std = [0.05] * 20
+    min_normalized_std = [0.05] * 21

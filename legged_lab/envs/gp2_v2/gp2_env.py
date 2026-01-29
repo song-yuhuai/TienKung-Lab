@@ -219,18 +219,21 @@ class Gp2Env(VecEnv):
         self.right_arm_local_vec = torch.tensor([0.0, 0.0, -0.3], device=self.device).repeat((self.num_envs, 1))
 
         # Init gait parameter
+        self._init_gait_settings()
         self.gait_phase = torch.zeros(self.num_envs, 2, dtype=torch.float, device=self.device, requires_grad=False)
         self.gait_cycle = torch.full(
-            (self.num_envs,), self.cfg.gait.gait_cycle, dtype=torch.float, device=self.device, requires_grad=False
+            (self.num_envs,), self.gait_cycle_walk, dtype=torch.float, device=self.device, requires_grad=False
         )
-        self.phase_ratio = torch.tensor(
-            [self.cfg.gait.gait_air_ratio_l, self.cfg.gait.gait_air_ratio_r], dtype=torch.float, device=self.device
-        ).repeat(self.num_envs, 1)
+        self.phase_ratio = torch.full(
+            (self.num_envs, 2), self.gait_air_ratio_walk, dtype=torch.float, device=self.device, requires_grad=False
+        )
         self.phase_offset = torch.tensor(
             [self.cfg.gait.gait_phase_offset_l, self.cfg.gait.gait_phase_offset_r],
             dtype=torch.float,
             device=self.device,
         ).repeat(self.num_envs, 1)
+        
+        self.gait_log_interval = 100
         self.action = torch.zeros(
             self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False
         )
@@ -240,6 +243,8 @@ class Gp2Env(VecEnv):
         self.avg_feet_speed_per_step = torch.zeros(
             self.num_envs, len(self.feet_cfg.body_ids), dtype=torch.float, device=self.device, requires_grad=False
         )
+        self.gait_phase_base = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+
         self.init_obs_buffer()
 
     def visualize_motion(self, time):
@@ -485,6 +490,8 @@ class Gp2Env(VecEnv):
         # Reset buffer
         self.avg_feet_force_per_step[env_ids] = 0.0
         self.avg_feet_speed_per_step[env_ids] = 0.0
+        self.gait_phase_base[env_ids] = 0.0
+
 
         self.extras["log"] = dict()
         if self.cfg.scene.terrain_generator is not None:
@@ -506,6 +513,7 @@ class Gp2Env(VecEnv):
         self.extras["time_outs"] = self.time_out_buf
 
         self.command_generator.reset(env_ids)
+        self._update_gait_params_for_envs(env_ids)
         self.actor_obs_buffer.reset(env_ids)
         self.critic_obs_buffer.reset(env_ids)
         self.action_buffer.reset(env_ids)
@@ -545,9 +553,10 @@ class Gp2Env(VecEnv):
             self.sim.render()
 
         self.episode_length_buf += 1
-        self._calculate_gait_para()
 
         self.command_generator.compute(self.step_dt)
+        self._update_gait_params_on_command_change()
+        self._calculate_gait_para()
         if "interval" in self.event_manager.available_modes:
             self.event_manager.apply(mode="interval", dt=self.step_dt)
 
@@ -558,6 +567,10 @@ class Gp2Env(VecEnv):
 
         actor_obs, critic_obs = self.compute_observations()
         self.extras["observations"] = {"critic": critic_obs}
+        if self.sim_step_counter % self.gait_log_interval == 0:
+            self.extras.setdefault("log", {})
+            self.extras["log"]["Gait/mean_cycle"] = torch.mean(self.gait_cycle)
+            self.extras["log"]["Gait/mean_air_ratio"] = torch.mean(self.phase_ratio)
 
         return actor_obs, reward_buf, self.reset_buf, self.extras
 
@@ -695,8 +708,88 @@ class Gp2Env(VecEnv):
 
     def _calculate_gait_para(self) -> None:
         """
-        Update gait phase parameters based on simulation time and offset.
+        Update gait phase parameters using a phase accumulator.
+        Avoids phase jumps when gait_cycle changes.
         """
-        t = self.episode_length_buf * self.step_dt / self.gait_cycle
-        self.gait_phase[:, 0] = (t + self.phase_offset[:, 0]) % 1.0
-        self.gait_phase[:, 1] = (t + self.phase_offset[:, 1]) % 1.0
+        dphi = self.step_dt / self.gait_cycle  # (num_envs,)
+        self.gait_phase_base = (self.gait_phase_base + dphi) % 1.0  # (num_envs,)
+
+        self.gait_phase[:, 0] = (self.gait_phase_base + self.phase_offset[:, 0]) % 1.0
+        self.gait_phase[:, 1] = (self.gait_phase_base + self.phase_offset[:, 1]) % 1.0
+
+    def _init_gait_settings(self) -> None:
+        gait_cfg = self.cfg.gait
+        self.gait_cycle_walk = getattr(gait_cfg, "gait_cycle_walk", gait_cfg.gait_cycle)
+        self.gait_cycle_run = getattr(gait_cfg, "gait_cycle_run", gait_cfg.gait_cycle)
+        self.gait_air_ratio_walk = getattr(gait_cfg, "gait_air_ratio_walk", None)
+        self.gait_air_ratio_run = getattr(gait_cfg, "gait_air_ratio_run", None)
+        if self.gait_air_ratio_walk is None or self.gait_air_ratio_run is None:
+            if hasattr(gait_cfg, "gait_air_ratio_l") and hasattr(gait_cfg, "gait_air_ratio_r"):
+                air_avg = 0.5 * (gait_cfg.gait_air_ratio_l + gait_cfg.gait_air_ratio_r)
+            else:
+                air_avg = 0.2
+            if self.gait_air_ratio_walk is None:
+                self.gait_air_ratio_walk = air_avg
+            if self.gait_air_ratio_run is None:
+                self.gait_air_ratio_run = air_avg
+        self.gait_speed_transition_start = getattr(gait_cfg, "speed_transition_start", 0.6)
+        self.gait_speed_transition_end = getattr(gait_cfg, "speed_transition_end", 1.0)
+        self.gait_speed_max_for_gait = getattr(
+            gait_cfg, "speed_max_for_gait", self.gait_speed_transition_end
+        )
+        self.gait_param_smoothing = getattr(gait_cfg, "gait_param_smoothing", 0.2)
+        self.gait_param_smoothing = float(np.clip(self.gait_param_smoothing, 0.0, 1.0))
+
+    def _smoothstep(self, u: torch.Tensor) -> torch.Tensor:
+        return u * u * (3.0 - 2.0 * u)
+
+    def _compute_gait_params_from_cmd(self, env_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        commands = self.command_generator.command[env_ids, :2]
+        s = torch.norm(commands, dim=1)
+        s_clamped = torch.clamp(s, 0.0, self.gait_speed_max_for_gait)
+        denom = max(self.gait_speed_transition_end - self.gait_speed_transition_start, 1e-6)
+        u = (s_clamped - self.gait_speed_transition_start) / denom
+        u = torch.clamp(u, 0.0, 1.0)
+        alpha = self._smoothstep(u)
+        gait_cycle_target = (1.0 - alpha) * self.gait_cycle_walk + alpha * self.gait_cycle_run
+        air_target = (1.0 - alpha) * self.gait_air_ratio_walk + alpha * self.gait_air_ratio_run
+        phase_ratio_target = torch.stack([air_target, air_target], dim=1)
+        assert gait_cycle_target.shape == (env_ids.shape[0],)
+        assert phase_ratio_target.shape == (env_ids.shape[0], 2)
+        return gait_cycle_target, phase_ratio_target
+
+    def _apply_gait_param_update(
+        self, env_ids: torch.Tensor, gait_cycle_target: torch.Tensor, phase_ratio_target: torch.Tensor
+    ) -> None:
+        beta = self.gait_param_smoothing
+        self.gait_cycle[env_ids] = (1.0 - beta) * self.gait_cycle[env_ids] + beta * gait_cycle_target
+        self.phase_ratio[env_ids, :] = (1.0 - beta) * self.phase_ratio[env_ids, :] + beta * phase_ratio_target
+
+    def _update_gait_params_for_envs(self, env_ids: torch.Tensor) -> None:
+        if env_ids.numel() == 0:
+            return
+        gait_cycle_target, phase_ratio_target = self._compute_gait_params_from_cmd(env_ids)
+        self._apply_gait_param_update(env_ids, gait_cycle_target, phase_ratio_target)
+        if not hasattr(self, "_last_command"):
+            self._last_command = self.command_generator.command.clone()
+        else:
+            self._last_command[env_ids] = self.command_generator.command[env_ids]
+
+    def _update_gait_params_on_command_change(self) -> None:
+        command = self.command_generator.command
+        if not hasattr(self, "_last_command"):
+            self._last_command = command.clone()
+            return
+        command_delta = torch.norm(command - self._last_command, dim=1)
+        env_ids = command_delta.gt(1e-3).nonzero(as_tuple=False).flatten()
+        if env_ids.numel() > 0:
+            # before update (optional)
+            # after update
+            self._update_gait_params_for_envs(env_ids)
+
+            # Debug: log a representative env (first changed)
+            eid = env_ids[0].item()
+            self.extras.setdefault("log", {})
+            self.extras["log"]["Gait/dbg_cmd_speed"] = torch.norm(command[eid, :2])
+            self.extras["log"]["Gait/dbg_cycle"] = self.gait_cycle[eid]
+            self.extras["log"]["Gait/dbg_air_ratio"] = self.phase_ratio[eid, 0]
