@@ -43,18 +43,8 @@
     <mesh name="right_elbow_link" file="right_elbow_link.STL"/>
     <mesh name="left_elbow_yaw_link" file="left_elbow_yaw_link.STL"/>
     <mesh name="right_elbow_yaw_link" file="right_elbow_yaw_link.STL"/>
-    <texture name="texgrid" type="2d" builtin="checker" rgb1="0.9 0.9 0.9" rgb2="0.7 0.7 0.7"
-            width="512" height="512" mark="cross" markrgb="0.2 0.2 0.2"/>
-    <material name="matfloor" texture="texgrid" texrepeat="4 4" reflectance="0.1"/>
   </asset>
   <worldbody>
-    <geom name="floor" type="plane" pos="0 0 0" size="10 10 0.1"
-      rgba="0.8 0.8 0.8 1" material="matfloor" contype="1" conaffinity="1"
-      friction="1 0.005 0.0001"/>
-
-    <light name="sun" pos="0 0 3" dir="0 0 -1" directional="true"
-       diffuse="1 1 1" specular="0.2 0.2 0.2"/>
-       
     <body name="pelvis" pos="0 0 0.732850403921914">
       <inertial pos="-0.041542 2.6e-05 -0.029964" mass="3.33337" fullinertia="0.015982 0.01114 0.011631 -7e-06 0.00016 -9e-06"/>
       <joint name="floating_base_joint" type="free" limited="false" actuatorfrclimited="false"/>
@@ -93,10 +83,10 @@
                   <!-- use sphere collisions under the foot instead of mesh collision -->
                   <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="left_ankle_roll_link"/>
                   <!-- Foot contact spheres (left) -->
-                  <geom type="sphere" size="0.005" pos="0.11 0.032 -0.05" contype="1" conaffinity="1"/>
-                  <geom type="sphere" size="0.005" pos="0.11 -0.032 -0.05" contype="1" conaffinity="1"/>
-                  <geom type="sphere" size="0.005" pos="-0.045 0.025 -0.05" contype="1" conaffinity="1"/>
-                  <geom type="sphere" size="0.005" pos="-0.045 -0.025 -0.05" contype="1" conaffinity="1"/>
+                  <geom type="sphere" size="0.005" pos="0.11 0.032 -0.05"/>
+                  <geom type="sphere" size="0.005" pos="0.11 -0.032 -0.05"/>
+                  <geom type="sphere" size="0.005" pos="-0.045 0.025 -0.05"/>
+                  <geom type="sphere" size="0.005" pos="-0.045 -0.025 -0.05"/>
                 </body>
               </body>
             </body>
@@ -133,10 +123,10 @@
                   <joint name="right_ankle_roll_joint" pos="0 0 0" axis="1 0 0" range="-0.35 0.35" actuatorfrcrange="-80 80" class="ankle_motor"/>
                   <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.75294 0.75294 0.75294 1" mesh="right_ankle_roll_link"/>
                   <!-- Foot contact spheres (right) -->
-                  <geom type="sphere" size="0.005" pos="0.11 0.032 -0.05" contype="1" conaffinity="1"/>
-                  <geom type="sphere" size="0.005" pos="0.11 -0.032 -0.05" contype="1" conaffinity="1"/>
-                  <geom type="sphere" size="0.005" pos="-0.045 0.025 -0.05" contype="1" conaffinity="1"/>
-                  <geom type="sphere" size="0.005" pos="-0.045 -0.025 -0.05" contype="1" conaffinity="1"/>
+                  <geom type="sphere" size="0.005" pos="0.11 0.032 -0.05"/>
+                  <geom type="sphere" size="0.005" pos="0.11 -0.032 -0.05"/>
+                  <geom type="sphere" size="0.005" pos="-0.045 0.025 -0.05"/>
+                  <geom type="sphere" size="0.005" pos="-0.045 -0.025 -0.05"/>
                 </body>
               </body>
             </body>
@@ -217,28 +207,28 @@
     </body>
   </worldbody>
   <actuator>
-    <position name="left_hip_pitch" joint="left_hip_pitch_joint" forcerange="-139 139"/>
-    <position name="left_hip_roll" joint="left_hip_roll_joint" forcerange="-88 88"/>
-    <position name="left_hip_yaw" joint="left_hip_yaw_joint" forcerange="-88 88"/>
-    <position name="left_knee" joint="left_knee_joint" forcerange="-139 139"/>
-    <position name="left_ankle_pitch" joint="left_ankle_pitch_joint" forcerange="-80 80"/>
-    <position name="left_ankle_roll" joint="left_ankle_roll_joint" forcerange="-80 80"/>
-    <position name="right_hip_pitch" joint="right_hip_pitch_joint" forcerange="-139 139"/>
-    <position name="right_hip_roll" joint="right_hip_roll_joint" forcerange="-88 88"/>
-    <position name="right_hip_yaw" joint="right_hip_yaw_joint" forcerange="-88 88"/>
-    <position name="right_knee" joint="right_knee_joint" forcerange="-139 139"/>
-    <position name="right_ankle_pitch" joint="right_ankle_pitch_joint" forcerange="-80 80"/>
-    <position name="right_ankle_roll" joint="right_ankle_roll_joint" forcerange="-80 80"/>
-    <position name="waist_yaw" joint="waist_yaw_joint" forcerange="-88 88"/>
-    <!-- <motor name="waist_roll" joint="waist_roll_joint" forcerange="-50 50" /> -->
-    <position name="left_shoulder_pitch" joint="left_shoulder_pitch_joint" forcerange="-25 25"/>
-    <position name="left_shoulder_roll" joint="left_shoulder_roll_joint" forcerange="-25 25"/>
-    <position name="left_shoulder_yaw" joint="left_shoulder_yaw_joint" forcerange="-25 25"/>
-    <position name="left_elbow" joint="left_elbow_joint" forcerange="-25 25"/>
-    <position name="right_shoulder_pitch" joint="right_shoulder_pitch_joint" forcerange="-25 25"/>
-    <position name="right_shoulder_roll" joint="right_shoulder_roll_joint" forcerange="-25 25"/>
-    <position name="right_shoulder_yaw" joint="right_shoulder_yaw_joint" forcerange="-25 25"/>
-    <position name="right_elbow" joint="right_elbow_joint" forcerange="-25 25"/>
+    <motor name="left_hip_pitch" joint="left_hip_pitch_joint" ctrlrange="-139 139"/>
+    <motor name="left_hip_roll" joint="left_hip_roll_joint" ctrlrange="-88 88"/>
+    <motor name="left_hip_yaw" joint="left_hip_yaw_joint" ctrlrange="-88 88"/>
+    <motor name="left_knee" joint="left_knee_joint" ctrlrange="-139 139"/>
+    <motor name="left_ankle_pitch" joint="left_ankle_pitch_joint" ctrlrange="-80 80"/>
+    <motor name="left_ankle_roll" joint="left_ankle_roll_joint" ctrlrange="-80 80"/>
+    <motor name="right_hip_pitch" joint="right_hip_pitch_joint" ctrlrange="-139 139"/>
+    <motor name="right_hip_roll" joint="right_hip_roll_joint" ctrlrange="-88 88"/>
+    <motor name="right_hip_yaw" joint="right_hip_yaw_joint" ctrlrange="-88 88"/>
+    <motor name="right_knee" joint="right_knee_joint" ctrlrange="-139 139"/>
+    <motor name="right_ankle_pitch" joint="right_ankle_pitch_joint" ctrlrange="-80 80"/>
+    <motor name="right_ankle_roll" joint="right_ankle_roll_joint" ctrlrange="-80 80"/>
+    <motor name="waist_yaw" joint="waist_yaw_joint" ctrlrange="-88 88"/>
+    <!-- <motor name="waist_roll" joint="waist_roll_joint" ctrlrange="-50 50" /> -->
+    <motor name="left_shoulder_pitch" joint="left_shoulder_pitch_joint" ctrlrange="-25 25"/>
+    <motor name="left_shoulder_roll" joint="left_shoulder_roll_joint" ctrlrange="-25 25"/>
+    <motor name="left_shoulder_yaw" joint="left_shoulder_yaw_joint" ctrlrange="-25 25"/>
+    <motor name="left_elbow" joint="left_elbow_joint" ctrlrange="-25 25"/>
+    <motor name="right_shoulder_pitch" joint="right_shoulder_pitch_joint" ctrlrange="-25 25"/>
+    <motor name="right_shoulder_roll" joint="right_shoulder_roll_joint" ctrlrange="-25 25"/>
+    <motor name="right_shoulder_yaw" joint="right_shoulder_yaw_joint" ctrlrange="-25 25"/>
+    <motor name="right_elbow" joint="right_elbow_joint" ctrlrange="-25 25"/>
   </actuator>
   <sensor>
     <jointpos name="left_hip_pitch_pos" joint="left_hip_pitch_joint"/>

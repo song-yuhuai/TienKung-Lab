@@ -52,23 +52,6 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 
 @configclass
-class GaitCfg:
-    gait_air_ratio_l: float = 0.4
-    gait_air_ratio_r: float = 0.4
-    gait_phase_offset_l: float = 0.6
-    gait_phase_offset_r: float = 0.1
-    
-    gait_cycle_walk: float = 0.95
-    gait_cycle_run: float = 0.5
-    gait_air_ratio_walk: float = 0.4
-    gait_air_ratio_run: float = 0.6
-    speed_transition_start: float = 0.6
-    speed_transition_end: float = 1.0
-    speed_max_for_gait: float = 1.0
-    gait_param_smoothing: float = 0.2
-
-
-@configclass
 class LiteRewardCfg:
     track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=1.0, params={"std": 0.5})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
@@ -137,7 +120,7 @@ class LiteRewardCfg:
     joint_deviation_arms = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["shoulder_roll_.*_joint", "shoulder_yaw_.*_joint"])},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["(left|right)_shoulder_roll_joint", "(left|right)_shoulder_yaw_joint",])},
     )
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
@@ -155,10 +138,6 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=1.0)
-    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=1.0)
-    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.6)
-
     ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0005)
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.001)
     hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-1.0)
@@ -168,7 +147,7 @@ class LiteRewardCfg:
 
 @configclass
 class Gp2RunFlatEnvCfg:
-    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/run.txt"]
+    amp_motion_files_display = ["legged_lab/envs/gp2_v2/datasets/motion_visualization/gp2_walk_run8603.txt"]
     device: str = "cuda:0"
     scene: BaseSceneCfg = BaseSceneCfg(
         max_episode_length_s=20.0,
@@ -197,7 +176,6 @@ class Gp2RunFlatEnvCfg:
         feet_body_names=["(left|right)_ankle_roll_link"],
     )
     reward = LiteRewardCfg()
-    gait = GaitCfg()
     normalization: NormalizationCfg = NormalizationCfg(
         obs_scales=ObsScalesCfg(
             lin_vel=1.0,
@@ -339,7 +317,7 @@ class Gp2RunAgentCfg(RslRlOnPolicyRunnerCfg):
 
     # amp parameter
     amp_reward_coef = 0.3
-    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/run.txt"]
+    amp_motion_files = ["legged_lab/envs/gp2_v2/datasets/motion_amp_expert/gp2_walk_run8603_expert.txt"]
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]

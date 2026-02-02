@@ -54,15 +54,6 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 
 @configclass
-class GaitCfg:
-    gait_air_ratio_l: float = 0.6
-    gait_air_ratio_r: float = 0.6
-    gait_phase_offset_l: float = 0.6
-    gait_phase_offset_r: float = 0.1
-    gait_cycle: float = 0.5
-
-
-@configclass
 class LiteRewardCfg:
     track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=1.0, params={"std": 0.5})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
@@ -150,10 +141,6 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=1.0)
-    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=1.0)
-    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.6)
-
     ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0005)
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.001)
     hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-1.0)
@@ -200,7 +187,6 @@ class TienKungRunWithSensorFlatEnvCfg:
         feet_body_names=["ankle_roll.*"],
     )
     reward = LiteRewardCfg()
-    gait = GaitCfg()
     normalization: NormalizationCfg = NormalizationCfg(
         obs_scales=ObsScalesCfg(
             lin_vel=1.0,

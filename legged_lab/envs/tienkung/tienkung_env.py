@@ -221,19 +221,6 @@ class TienKungEnv(VecEnv):
         self.left_arm_local_vec = torch.tensor([0.0, 0.0, -0.3], device=self.device).repeat((self.num_envs, 1))
         self.right_arm_local_vec = torch.tensor([0.0, 0.0, -0.3], device=self.device).repeat((self.num_envs, 1))
 
-        # Init gait parameter
-        self.gait_phase = torch.zeros(self.num_envs, 2, dtype=torch.float, device=self.device, requires_grad=False)
-        self.gait_cycle = torch.full(
-            (self.num_envs,), self.cfg.gait.gait_cycle, dtype=torch.float, device=self.device, requires_grad=False
-        )
-        self.phase_ratio = torch.tensor(
-            [self.cfg.gait.gait_air_ratio_l, self.cfg.gait.gait_air_ratio_r], dtype=torch.float, device=self.device
-        ).repeat(self.num_envs, 1)
-        self.phase_offset = torch.tensor(
-            [self.cfg.gait.gait_phase_offset_l, self.cfg.gait.gait_phase_offset_r],
-            dtype=torch.float,
-            device=self.device,
-        ).repeat(self.num_envs, 1)
         self.action = torch.zeros(
             self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False
         )
@@ -372,9 +359,6 @@ class TienKungEnv(VecEnv):
                 joint_pos * self.obs_scales.joint_pos,  # 20
                 joint_vel * self.obs_scales.joint_vel,  # 20
                 action * self.obs_scales.actions,  # 20
-                torch.sin(2 * torch.pi * self.gait_phase),  # 2
-                torch.cos(2 * torch.pi * self.gait_phase),  # 2
-                self.phase_ratio,  # 2
             ],
             dim=-1,
         )
@@ -485,7 +469,6 @@ class TienKungEnv(VecEnv):
             self.sim.render()
 
         self.episode_length_buf += 1
-        self._calculate_gait_para()
 
         self.command_generator.compute(self.step_dt)
         if "interval" in self.event_manager.available_modes:
@@ -524,16 +507,14 @@ class TienKungEnv(VecEnv):
             actor_obs, _ = self.compute_current_observations()
             noise_vec = torch.zeros_like(actor_obs[0])
             noise_scales = self.cfg.noise.noise_scales
-            noise_vec[:3] = noise_scales.lin_vel * self.obs_scales.lin_vel
-            noise_vec[3:6] = noise_scales.ang_vel * self.obs_scales.ang_vel
-            noise_vec[6:9] = noise_scales.projected_gravity * self.obs_scales.projected_gravity
-            noise_vec[9:12] = 0
-            noise_vec[12 : 12 + self.num_actions] = noise_scales.joint_pos * self.obs_scales.joint_pos
-            noise_vec[12 + self.num_actions : 12 + self.num_actions * 2] = (
+            noise_vec[:3] = noise_scales.ang_vel * self.obs_scales.ang_vel
+            noise_vec[3:6] = noise_scales.projected_gravity * self.obs_scales.projected_gravity
+            noise_vec[6:9] = 0
+            noise_vec[9 : 9 + self.num_actions] = noise_scales.joint_pos * self.obs_scales.joint_pos
+            noise_vec[9 + self.num_actions : 9 + self.num_actions * 2] = (
                 noise_scales.joint_vel * self.obs_scales.joint_vel
             )
-            noise_vec[12 + self.num_actions * 2 : 12 + self.num_actions * 3] = 0.0
-            noise_vec[12 + self.num_actions * 3 : 18 + self.num_actions * 3] = 0.0
+            noise_vec[9 + self.num_actions * 2 : 9 + self.num_actions * 3] = 0.0
             self.noise_scale_vec = noise_vec
 
             if self.cfg.scene.height_scanner.enable_height_scan:
@@ -627,11 +608,3 @@ class TienKungEnv(VecEnv):
         except ModuleNotFoundError:
             pass
         return torch_utils.set_seed(seed)
-
-    def _calculate_gait_para(self) -> None:
-        """
-        Update gait phase parameters based on simulation time and offset.
-        """
-        t = self.episode_length_buf * self.step_dt / self.gait_cycle
-        self.gait_phase[:, 0] = (t + self.phase_offset[:, 0]) % 1.0
-        self.gait_phase[:, 1] = (t + self.phase_offset[:, 1]) % 1.0

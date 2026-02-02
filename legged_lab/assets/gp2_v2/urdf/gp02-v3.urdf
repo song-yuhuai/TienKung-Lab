@@ -935,16 +935,16 @@
     name="torso_link">
     <inertial>
       <origin
-        xyz="-0.000344 0.002477 0.161837"
+        xyz="-0.002477 -0.000344 0.161837"
         rpy="0 0 0" />
       <mass
         value="6.419405" />
       <inertia
-        ixx="0.047610"
-        ixy="0.000108"
-        ixz="-0.001232"
-        iyy="0.051566"
-        iyz="0.000997"
+        ixx="0.051566"
+        ixy="-0.000108"
+        ixz="-0.000997"
+        iyy="0.047610"
+        iyz="-0.001232"
         izz="0.028807" />
     </inertial>
     <visual>
@@ -976,19 +976,55 @@
     type="fixed">
     <origin
       xyz="0.001 0 0.0522"
-      rpy="0 0 1.5708" />
+      rpy="0 0 0" />
     <parent
       link="waist_yaw_link" />
     <child
       link="torso_link" />
     <axis
-      xyz="0 1 0" />
+      xyz="1 0 0" />
     <limit
       lower="-0.52"
       upper="0.52"
       effort="88"
       velocity="32" />
   </joint>
+
+  <!-- IMU -->
+  <link name="imu_in_torso">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.005" />
+      </geometry>
+      <material name="imu">
+        <color rgba="1 0 0 0.75" />
+      </material>
+    </visual>
+  </link>
+  <joint name="imu_in_torso_joint" type="fixed">
+    <origin xyz="0.07 0 0.04" rpy="0 0 0"/>
+    <parent link="torso_link"/>
+    <child link="imu_in_torso"/>
+  </joint>
+
+  <link name="imu_in_pelvis">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.005" />
+      </geometry>
+      <material name="imu">
+        <color rgba="1 0 0 0.75" />
+      </material>
+    </visual>
+  </link>
+  <joint name="imu_in_pelvis_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="pelvis"/>
+    <child link="imu_in_pelvis"/>
+  </joint>
+
   <link
     name="left_shoulder_pitch_link">
     <inertial>
@@ -1033,8 +1069,8 @@
     name="left_shoulder_pitch_joint"
     type="revolute">
     <origin
-      xyz="0.11844 0.001 0.241"
-      rpy="0 0 -1.5708" />
+      xyz="-0.001 0.11844 0.241"
+      rpy="0 0 0" />
     <parent
       link="torso_link" />
     <child
@@ -1323,8 +1359,8 @@
     name="right_shoulder_pitch_joint"
     type="revolute">
     <origin
-      xyz="-0.11844 0.001 0.241"
-      rpy="0 0 -1.5708" />
+      xyz="-0.001 -0.11844 0.241"
+      rpy="0 0 0" />
     <parent
       link="torso_link" />
     <child

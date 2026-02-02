@@ -20,6 +20,7 @@ from legged_lab.envs.base.base_env import BaseEnv
 from legged_lab.envs.base.base_env_config import BaseAgentCfg, BaseEnvCfg
 from legged_lab.envs.gp2_v2.gp2_env import Gp2Env
 from legged_lab.envs.gp2_v2.walk_cfg import Gp2WalkAgentCfg, Gp2WalkFlatEnvCfg
+from legged_lab.envs.gp2_v2.run_cfg import Gp2RunAgentCfg, Gp2RunFlatEnvCfg
 from legged_lab.envs.tienkung.run_cfg import TienKungRunAgentCfg, TienKungRunFlatEnvCfg
 from legged_lab.envs.tienkung.run_with_sensor_cfg import (
     TienKungRunWithSensorAgentCfg,

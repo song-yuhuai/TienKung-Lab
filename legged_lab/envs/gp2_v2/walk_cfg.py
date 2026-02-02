@@ -52,15 +52,6 @@ from legged_lab.terrains import GRAVEL_TERRAINS_CFG, ROUGH_TERRAINS_CFG  # noqa:
 
 
 @configclass
-class GaitCfg:
-    gait_air_ratio_l: float = 0.55
-    gait_air_ratio_r: float = 0.55
-    gait_phase_offset_l: float = 0.38
-    gait_phase_offset_r: float = 0.88
-    gait_cycle: float = 0.95
-
-
-@configclass
 class LiteRewardCfg:
     track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=5.0, params={"std": 0.3})
     track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
@@ -142,9 +133,6 @@ class LiteRewardCfg:
         },
     )
 
-    gait_feet_frc_perio = RewTerm(func=mdp.gait_feet_frc_perio, weight=0.7, params={"delta_t": 0.02})
-    gait_feet_spd_perio = RewTerm(func=mdp.gait_feet_spd_perio, weight=0.7, params={"delta_t": 0.02})
-    gait_feet_frc_support_perio = RewTerm(func=mdp.gait_feet_frc_support_perio, weight=0.4, params={"delta_t": 0.02})
     idle_feet_vel_l2 = RewTerm(func=mdp.idle_feet_vel_l2, weight=-0.5,
     params={
         "asset_cfg": SceneEntityCfg(
@@ -194,7 +182,6 @@ class Gp2WalkFlatEnvCfg:
         feet_body_names=["(left|right)_ankle_roll_link"],
     )
     reward = LiteRewardCfg()
-    gait = GaitCfg()
     normalization: NormalizationCfg = NormalizationCfg(
         obs_scales=ObsScalesCfg(
             lin_vel=1.0,
