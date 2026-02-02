@@ -231,8 +231,8 @@ class Gp2RunFlatEnvCfg:
                 mode="startup",
                 params={
                     "asset_cfg": SceneEntityCfg("robot", body_names="pelvis"),
-                    "mass_distribution_params": (-5.0, 5.0),
-                    "operation": "add",
+                    "mass_distribution_params": (0.8, 1.2),
+                    "operation": "scale",
                 },
             ),
             reset_base=EventTerm(
