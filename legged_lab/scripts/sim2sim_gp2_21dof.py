@@ -57,15 +57,15 @@ class SimToSimCfg:
         decimation = 4
         clip_observations = 100.0
         clip_actions = 100
-        action_scale = 0.25
-        realtime_factor = 0.25  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
+        action_scale = 0.15
+        realtime_factor = 0.8  # 1.0 = real time, 0.5 = 2x slower, 2.0 = 2x faster
 
     class robot:
-        gait_air_ratio_l: float = 0.4
-        gait_air_ratio_r: float = 0.4
+        gait_air_ratio_l: float = 0.45
+        gait_air_ratio_r: float = 0.45
         gait_phase_offset_l: float = 0.38
         gait_phase_offset_r: float = 0.88
-        gait_cycle: float = 0.95
+        gait_cycle: float = 1.0
 
 
 class MujocoRunner:
@@ -138,11 +138,11 @@ class MujocoRunner:
         self.dof_vel = np.zeros(self.cfg.sim.num_action)
         self.action = np.zeros(self.cfg.sim.num_action)
         self.default_dof_pos = np.array(
-            [-0.27, 0.0, 0.0, 0.55, -0.28, 0.0, #left leg
-             -0.27, 0.0, 0.0, 0.55, -0.28, 0.0, #right leg
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, #left leg
+             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, #right leg
              0.0, #waist
-             0.2, 0.25, 0.0, 0.97, #left arm
-             0.2, -0.25, 0.0, 0.97] #right arm
+             0.0, 0.1, 0.0, 1.43, #left arm
+             0.0, -0.1, 0.0, 1.43] #right arm
         )
         self.episode_length_buf = 0
         self.gait_phase = np.zeros(2)
@@ -253,33 +253,33 @@ class MujocoRunner:
 
         self.pd_stand_kd = {
             # arms
-            "left_shoulder_pitch_joint": 1.0,
-            "left_shoulder_roll_joint":  1.0,
-            "left_shoulder_yaw_joint":   1.0,
-            "left_elbow_joint":          1.0,
-            "right_shoulder_pitch_joint": 1.0,
-            "right_shoulder_roll_joint":  1.0,
-            "right_shoulder_yaw_joint":   1.0,
-            "right_elbow_joint":          1.0,
+            "left_shoulder_pitch_joint": 2.0,
+            "left_shoulder_roll_joint":  2.0,
+            "left_shoulder_yaw_joint":   2.0,
+            "left_elbow_joint":          2.0,
+            "right_shoulder_pitch_joint": 2.0,
+            "right_shoulder_roll_joint":  2.0,
+            "right_shoulder_yaw_joint":   2.0,
+            "right_elbow_joint":          2.0,
 
             # waist
-            "waist_yaw_joint": 1.0,
+            "waist_yaw_joint": 2.0,
 
             # left leg
-            "left_hip_pitch_joint": 2.0,
-            "left_hip_roll_joint":  2.0,
-            "left_hip_yaw_joint":   1.5,
-            "left_knee_joint":      3.0,
-            "left_ankle_pitch_joint": 1.0,
-            "left_ankle_roll_joint":  1.0,
+            "left_hip_pitch_joint": 4.0,
+            "left_hip_roll_joint":  4.0,
+            "left_hip_yaw_joint":   3.0,
+            "left_knee_joint":      6.0,
+            "left_ankle_pitch_joint": 2.0,
+            "left_ankle_roll_joint":  2.0,
 
             # right leg
-            "right_hip_pitch_joint": 2.0,
-            "right_hip_roll_joint":  2.0,
-            "right_hip_yaw_joint":   1.5,
-            "right_knee_joint":      3.0,
-            "right_ankle_pitch_joint": 1.0,
-            "right_ankle_roll_joint":  1.0,
+            "right_hip_pitch_joint": 4.0,
+            "right_hip_roll_joint":  4.0,
+            "right_hip_yaw_joint":   3.0,
+            "right_knee_joint":      6.0,
+            "right_ankle_pitch_joint": 2.0,
+            "right_ankle_roll_joint":  2.0,
         }
 
         self.pd_walk_kp = {
@@ -288,14 +288,14 @@ class MujocoRunner:
             "left_hip_roll_joint":  100.0,
             "left_hip_yaw_joint":   100.0,
             "left_knee_joint":      180.0,
-            "left_ankle_pitch_joint": 150.0,
+            "left_ankle_pitch_joint": 80.0,
             "left_ankle_roll_joint":   40.0,
 
             "right_hip_pitch_joint": 150.0,
             "right_hip_roll_joint":  100.0,
             "right_hip_yaw_joint":   100.0,
             "right_knee_joint":      180.0,
-            "right_ankle_pitch_joint": 150.0,
+            "right_ankle_pitch_joint": 80.0,
             "right_ankle_roll_joint":   40.0,
 
             # waist
@@ -420,9 +420,9 @@ class MujocoRunner:
 
         obs = np.concatenate(
             [
-                self.data.sensor("body-angular-velocity").data.astype(np.double),  # 3
+                self.data.sensor("imu_gyro").data.astype(np.double),  # 3
                 self.quat_rotate_inverse(
-                    self.data.sensor("body-orientation").data[[1, 2, 3, 0]].astype(np.double), np.array([0, 0, -1])
+                    self.data.sensor("imu_quat").data[[1, 2, 3, 0]].astype(np.double), np.array([0, 0, -1])
                 ),  # 3
                 self.command_vel,  # 3
                 (self.dof_pos - self.default_dof_pos)[self.mujoco_to_isaac_idx],  # 21
@@ -473,11 +473,9 @@ class MujocoRunner:
             self.action[:] = self.policy(torch.tensor(self.obs_history, dtype=torch.float32)).detach().numpy()[:21]
             self.action = np.clip(self.action, -self.cfg.sim.clip_actions, self.cfg.sim.clip_actions)
 
-            # mute = [16, 17, 22, 23]  # Isaac order
-            # self.action[mute] = 0.0
 
             # --- NEW: automatic stand/walk switching based on joystick command ---
-            # self.update_locomotion_mode(self.dt)
+            self.update_locomotion_mode(self.dt)
 
             for sim_update in range(self.cfg.sim.decimation):
                 step_start_time = time.time()
@@ -498,8 +496,8 @@ class MujocoRunner:
                     # clear any previous external forces
                     self.data.xfrc_applied[:] = 0.0
 
-                # self.data.ctrl = self.position_control()
-                self.data.ctrl = self.data.qpos[7:7 + self.model.nu].copy()
+                self.data.ctrl = self.position_control()
+                # self.data.ctrl = self.data.qpos[7:7 + self.model.nu].copy()
                 mujoco.mj_step(self.model, self.data)
                 prev_ncon = getattr(self, "_prev_ncon", None)
                 ncon = self.data.ncon
@@ -780,7 +778,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         type=str,
-        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v2/mjcf/gp02-v25.xml"),
+        default=os.path.join(LEGGED_LAB_ROOT_DIR, "legged_lab/assets/gp2_v3/mjcf/gp02_v3.xml"),
         help="Path to model.xml",
     )
     parser.add_argument("--duration", type=float, default=100.0, help="Simulation duration in seconds")
@@ -810,11 +808,11 @@ if __name__ == "__main__":
 
     # Set gait parameters according to task
     if args.task == "gp2_walk":
-        sim_cfg.robot.gait_air_ratio_l = 0.4
-        sim_cfg.robot.gait_air_ratio_r = 0.4
+        sim_cfg.robot.gait_air_ratio_l = 0.45
+        sim_cfg.robot.gait_air_ratio_r = 0.45
         sim_cfg.robot.gait_phase_offset_l = 0.38
         sim_cfg.robot.gait_phase_offset_r = 0.88
-        sim_cfg.robot.gait_cycle = 0.95
+        sim_cfg.robot.gait_cycle = 1.0
     elif args.task == "gp2_run":
         sim_cfg.robot.gait_air_ratio_l = 0.6
         sim_cfg.robot.gait_air_ratio_r = 0.6
